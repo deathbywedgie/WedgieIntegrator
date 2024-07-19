@@ -2,7 +2,7 @@ from pydantic import BaseModel, ValidationError
 from abc import ABC, abstractmethod
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import Optional, Any, Dict, Type
+from typing import Optional, Any, Type
 import structlog
 import logging
 
@@ -81,6 +81,13 @@ class BasicAuth(AuthStrategy):
 
     def authenticate(self, request: httpx.Request) -> None:
         request.headers['Authorization'] = f"Basic {httpx.auth._basic_auth_str(self.username, self.password)}"
+
+
+class NoAuth(AuthStrategy):
+    """No authentication strategy."""
+
+    def authenticate(self, request: httpx.Request) -> None:
+        pass
 
 
 def with_retries(func):
