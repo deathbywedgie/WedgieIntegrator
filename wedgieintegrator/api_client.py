@@ -5,6 +5,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from typing import Optional, Any, Type, Union
 import structlog
 import logging
+import base64
 
 # Configure structlog
 def configure_structlog():
@@ -72,7 +73,9 @@ class BasicAuth(AuthStrategy):
         self.password = password
 
     def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Basic {httpx.BasicAuth(username=self.username, password=self.password).auth_header}"
+        basic_auth_str = f"{self.username}:{self.password}"
+        encoded_auth_str = base64.b64encode(basic_auth_str.encode("utf-8")).decode("utf-8")
+        request.headers['Authorization'] = f"Basic {encoded_auth_str}"
 
 class NoAuth(AuthStrategy):
     """No authentication strategy."""
