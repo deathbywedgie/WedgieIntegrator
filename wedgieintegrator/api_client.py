@@ -72,7 +72,7 @@ class BasicAuth(AuthStrategy):
         self.password = password
 
     def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Basic {httpx.BasicAuth(self.username, self.password).auth_header}"
+        request.headers['Authorization'] = f"Basic {httpx.BasicAuth(username=self.username, password=self.password).auth_header}"
 
 class NoAuth(AuthStrategy):
     """No authentication strategy."""
@@ -111,7 +111,7 @@ class BaseAPIClient:
         if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
 
-        request = self.client.build_request(method, endpoint, **kwargs)
+        request = self.client.build_request(method=method, url=endpoint, **kwargs)
         self.auth_strategy.authenticate(request)
         try:
             response = await self.client.send(request)
@@ -132,8 +132,8 @@ class BaseAPIClient:
 
     async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send a GET request"""
-        return await self.send_request("GET", endpoint, **kwargs)
+        return await self.send_request(method="GET", endpoint=endpoint, **kwargs)
 
     async def post(self, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send a POST request"""
-        return await self.send_request("POST", endpoint, **kwargs)
+        return await self.send_request(method="POST", endpoint=endpoint, **kwargs)
