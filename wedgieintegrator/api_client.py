@@ -83,6 +83,14 @@ class BasicAuth(AuthStrategy):
         request.headers['Authorization'] = f"Basic {httpx.auth._basic_auth_str(self.username, self.password)}"
 
 
+def with_retries(func):
+    """Decorator to add retries to a function based on config"""
+    def wrapper(self, *args, **kwargs):
+        retry_decorator = retry(stop=stop_after_attempt(self.config.retry_attempts), wait=wait_exponential(min=1, max=10))
+        return retry_decorator(func)(self, *args, **kwargs)
+    return wrapper
+
+
 class BaseAPIClient:
     """Base class for API client"""
 
@@ -98,10 +106,6 @@ class BaseAPIClient:
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.client.aclose()
-
-    def with_retries(self, func):
-        """Decorator to add retries to a function based on config"""
-        return retry(stop=stop_after_attempt(self.config.retry_attempts), wait=wait_exponential(min=1, max=10))(func)
 
     @with_retries
     async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
