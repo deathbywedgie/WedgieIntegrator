@@ -6,7 +6,6 @@ from typing import Optional, Any, Type
 import structlog
 import logging
 
-
 # Configure structlog
 def configure_structlog():
     """Configure structlog if it has not been configured by the user"""
@@ -19,10 +18,8 @@ def configure_structlog():
             wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING)
         )
 
-
 configure_structlog()
 logger = structlog.get_logger()
-
 
 class APIConfig(BaseModel):
     """Configuration model for API client"""
@@ -32,7 +29,6 @@ class APIConfig(BaseModel):
     retry_attempts: int = 3
     timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
 
-
 class AuthStrategy(ABC):
     """Abstract base class for authentication strategies"""
 
@@ -40,7 +36,6 @@ class AuthStrategy(ABC):
     def authenticate(self, request: httpx.Request) -> None:
         """Apply authentication to the request"""
         pass
-
 
 class APIKeyAuth(AuthStrategy):
     """API key authentication strategy"""
@@ -51,7 +46,6 @@ class APIKeyAuth(AuthStrategy):
     def authenticate(self, request: httpx.Request) -> None:
         request.headers['Authorization'] = f"Bearer {self.api_key}"
 
-
 class OAuthAuth(AuthStrategy):
     """OAuth token authentication strategy"""
 
@@ -60,7 +54,6 @@ class OAuthAuth(AuthStrategy):
 
     def authenticate(self, request: httpx.Request) -> None:
         request.headers['Authorization'] = f"Bearer {self.token}"
-
 
 class BearerTokenAuth(AuthStrategy):
     """Bearer token authentication strategy"""
@@ -71,7 +64,6 @@ class BearerTokenAuth(AuthStrategy):
     def authenticate(self, request: httpx.Request) -> None:
         request.headers['Authorization'] = f"Bearer {self.token}"
 
-
 class BasicAuth(AuthStrategy):
     """Basic authentication strategy"""
 
@@ -80,8 +72,7 @@ class BasicAuth(AuthStrategy):
         self.password = password
 
     def authenticate(self, request: httpx.Request) -> None:
-        request.headers['Authorization'] = f"Basic {httpx.auth._basic_auth_str(self.username, self.password)}"
-
+        request.headers['Authorization'] = f"Basic {httpx.BasicAuth(self.username, self.password).auth_header}"
 
 class NoAuth(AuthStrategy):
     """No authentication strategy."""
@@ -89,14 +80,12 @@ class NoAuth(AuthStrategy):
     def authenticate(self, request: httpx.Request) -> None:
         pass
 
-
 def with_retries(func):
     """Decorator to add retries to a function based on config"""
     def wrapper(self, *args, **kwargs):
         retry_decorator = retry(stop=stop_after_attempt(self.config.retry_attempts), wait=wait_exponential(min=1, max=10))
         return retry_decorator(func)(self, *args, **kwargs)
     return wrapper
-
 
 class BaseAPIClient:
     """Base class for API client"""
