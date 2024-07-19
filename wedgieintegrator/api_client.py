@@ -96,12 +96,13 @@ class BaseAPIClient:
         self.response_model = response_model
         self.client: Optional[httpx.AsyncClient] = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'BaseAPIClient':
         self.client = httpx.AsyncClient(base_url=self.config.base_url, timeout=self.config.timeout)
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.client.aclose()
+    async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[Any]):
+        if self.client:
+            await self.client.aclose()
 
     @with_retries
     async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
