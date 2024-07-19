@@ -26,25 +26,25 @@ def test_api_config(api_config):
     assert api_config.retry_attempts == 3
     assert api_config.timeout == 10.0
 
-def test_authenticate_with_api_key():
+def test_auth_with_api_key():
     auth = APIKeyAuth(api_key="dummy_api_key")
     request = Request(method="GET", url="https://api.example.com")
     auth.authenticate(request)
     assert request.headers["Authorization"] == "Bearer dummy_api_key"
 
-def test_authenticate_with_oauth():
+def test_auth_with_oauth():
     auth = OAuthAuth(token="dummy_oauth_token")
     request = Request(method="GET", url="https://api.example.com")
     auth.authenticate(request)
     assert request.headers["Authorization"] == "Bearer dummy_oauth_token"
 
-def test_authenticate_with_bearer_token():
+def test_auth_with_bearer_token():
     auth = BearerTokenAuth(token="dummy_bearer_token")
     request = Request(method="GET", url="https://api.example.com")
     auth.authenticate(request)
     assert request.headers["Authorization"] == "Bearer dummy_bearer_token"
 
-def test_authenticate_with_basic_auth():
+def test_auth_with_basic_auth():
     auth = BasicAuth(username="dummy_user", password="dummy_pass")
     request = Request(method="GET", url="https://api.example.com")
     auth.authenticate(request)
