@@ -2,7 +2,7 @@ from pydantic import BaseModel, ValidationError
 from abc import ABC, abstractmethod
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import Optional, Any, Type
+from typing import Optional, Any, Type, Union
 import structlog
 import logging
 
@@ -33,7 +33,7 @@ class AuthStrategy(ABC):
     """Abstract base class for authentication strategies"""
 
     @abstractmethod
-    def authenticate(self, request: httpx.Request) -> None:
+    def authenticate(self, request: httpx.Request):
         """Apply authentication to the request"""
         pass
 
@@ -43,7 +43,7 @@ class APIKeyAuth(AuthStrategy):
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    def authenticate(self, request: httpx.Request) -> None:
+    def authenticate(self, request: httpx.Request):
         request.headers['Authorization'] = f"Bearer {self.api_key}"
 
 class OAuthAuth(AuthStrategy):
@@ -52,7 +52,7 @@ class OAuthAuth(AuthStrategy):
     def __init__(self, token: str):
         self.token = token
 
-    def authenticate(self, request: httpx.Request) -> None:
+    def authenticate(self, request: httpx.Request):
         request.headers['Authorization'] = f"Bearer {self.token}"
 
 class BearerTokenAuth(AuthStrategy):
@@ -61,7 +61,7 @@ class BearerTokenAuth(AuthStrategy):
     def __init__(self, token: str):
         self.token = token
 
-    def authenticate(self, request: httpx.Request) -> None:
+    def authenticate(self, request: httpx.Request):
         request.headers['Authorization'] = f"Bearer {self.token}"
 
 class BasicAuth(AuthStrategy):
@@ -71,13 +71,13 @@ class BasicAuth(AuthStrategy):
         self.username = username
         self.password = password
 
-    def authenticate(self, request: httpx.Request) -> None:
+    def authenticate(self, request: httpx.Request):
         request.headers['Authorization'] = f"Basic {httpx.BasicAuth(self.username, self.password).auth_header}"
 
 class NoAuth(AuthStrategy):
     """No authentication strategy."""
 
-    def authenticate(self, request: httpx.Request) -> None:
+    def authenticate(self, request: httpx.Request):
         pass
 
 def with_retries(func):
@@ -94,7 +94,7 @@ class BaseAPIClient:
         self.config = config
         self.auth_strategy = auth_strategy
         self.response_model = response_model
-        self.client = None
+        self.client: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self):
         self.client = httpx.AsyncClient(base_url=self.config.base_url, timeout=self.config.timeout)
@@ -104,9 +104,12 @@ class BaseAPIClient:
         await self.client.aclose()
 
     @with_retries
-    async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
+    async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send an HTTP request with retries and authentication"""
         logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
+        if self.client is None:
+            raise RuntimeError("HTTP client is not initialized")
+
         request = self.client.build_request(method, endpoint, **kwargs)
         self.auth_strategy.authenticate(request)
         try:
@@ -126,10 +129,10 @@ class BaseAPIClient:
             logger.error("Response validation failed", error=str(e))
             raise
 
-    async def get(self, endpoint: str, **kwargs: Any) -> Any:
+    async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send a GET request"""
         return await self.send_request("GET", endpoint, **kwargs)
 
-    async def post(self, endpoint: str, **kwargs: Any) -> Any:
+    async def post(self, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send a POST request"""
         return await self.send_request("POST", endpoint, **kwargs)
