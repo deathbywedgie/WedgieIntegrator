@@ -6,7 +6,7 @@ import structlog
 from .logging_config import configure_structlog
 from .config import APIConfig
 from .auth import AuthStrategy
-from .utils import with_retries
+# from .utils import with_retries
 
 # Configure structlog
 configure_structlog()
