@@ -67,5 +67,5 @@ async def test_update_repo(api_client):
 async def test_delete_repo(api_client):
     """Test DELETE request to delete a repository"""
     async with api_client:
-        response = await api_client.send_request(method="DELETE", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}")
+        response = await api_client.send_request(method="DELETE", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}", return_response=True)
         assert response.status_code == 204  # No content
