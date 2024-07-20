@@ -3,23 +3,12 @@ import httpx
 from tenacity import RetryError
 from typing import Optional, Any, Type, Union
 import structlog
-import logging
+from .logging_config import configure_structlog
 from .config import APIConfig
 from .auth import AuthStrategy
 from .utils import with_retries
 
 # Configure structlog
-def configure_structlog():
-    """Configure structlog if it has not been configured by the user"""
-    if not structlog.is_configured():
-        structlog.configure(
-            processors=[
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.JSONRenderer()
-            ],
-            wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING)
-        )
-
 configure_structlog()
 logger = structlog.get_logger()
 
