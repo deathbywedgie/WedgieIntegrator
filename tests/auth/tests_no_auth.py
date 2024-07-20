@@ -72,4 +72,3 @@ async def test_delete_post(api_client):
     async with api_client:
         response = await api_client.send_request(method="DELETE", endpoint="/posts/1")
         assert response == {}
-
