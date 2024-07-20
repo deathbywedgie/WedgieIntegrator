@@ -29,7 +29,7 @@ class BaseAPIClient:
         if self.client:
             await self.client.aclose()
 
-    @with_retries
+    # @with_retries
     async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send an HTTP request with retries and authentication"""
         logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
