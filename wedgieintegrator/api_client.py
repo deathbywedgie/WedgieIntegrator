@@ -38,11 +38,20 @@ class BaseAPIClient:
         self.auth_strategy.authenticate(request)
         try:
             response = await self.client.send(request)
-            response.raise_for_status()
             logger.info("Received response", status_code=response.status_code)
+            response.raise_for_status()
+
             if self.response_model:
-                return self.response_model.parse_obj(response.json())
-            return response.json()
+                parsed_response = response.json()
+                return self.response_model.parse_obj(parsed_response)
+
+            content_type = response.headers.get('Content-Type', '')
+            if 'application/json' in content_type:
+                return response.json()
+            elif 'text/' in content_type:
+                return response.text
+            else:
+                return response.content
         except httpx.HTTPStatusError as e:
             logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
             raise
