@@ -19,24 +19,6 @@ class APIKeyAuth(AuthStrategy):
     def authenticate(self, request: httpx.Request):
         request.headers['Authorization'] = f"Bearer {self.api_key}"
 
-class OAuthAuth(AuthStrategy):
-    """OAuth token authentication strategy"""
-
-    def __init__(self, token: str):
-        self.token = token
-
-    def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.token}"
-
-class BearerTokenAuth(AuthStrategy):
-    """Bearer token authentication strategy"""
-
-    def __init__(self, token: str):
-        self.token = token
-
-    def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.token}"
-
 class BasicAuth(AuthStrategy):
     """Basic authentication strategy"""
 
@@ -49,8 +31,26 @@ class BasicAuth(AuthStrategy):
         encoded_auth_str = base64.b64encode(basic_auth_str.encode("utf-8")).decode("utf-8")
         request.headers['Authorization'] = f"Basic {encoded_auth_str}"
 
+class BearerTokenAuth(AuthStrategy):
+    """Bearer token authentication strategy"""
+
+    def __init__(self, token: str):
+        self.token = token
+
+    def authenticate(self, request: httpx.Request):
+        request.headers['Authorization'] = f"Bearer {self.token}"
+
 class NoAuth(AuthStrategy):
     """No authentication strategy."""
 
     def authenticate(self, request: httpx.Request):
         pass
+
+class OAuthAuth(AuthStrategy):
+    """OAuth token authentication strategy"""
+
+    def __init__(self, token: str):
+        self.token = token
+
+    def authenticate(self, request: httpx.Request):
+        request.headers['Authorization'] = f"Bearer {self.token}"
