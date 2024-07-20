@@ -28,7 +28,7 @@ class BaseAPIClient:
         if self.client:
             await self.client.aclose()
 
-    async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
+    async def send_request(self, method: str, endpoint: str, return_response: bool = False, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
         """Send an HTTP request with retries and authentication"""
         logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
         if self.client is None:
@@ -40,6 +40,9 @@ class BaseAPIClient:
             response = await self.client.send(request)
             logger.info("Received response", status_code=response.status_code)
             response.raise_for_status()
+
+            if return_response:
+                return response
 
             if self.response_model:
                 parsed_response = response.json()
@@ -62,10 +65,10 @@ class BaseAPIClient:
             logger.error("Response validation failed", error=str(e))
             raise
 
-    async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
+    async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
         """Send a GET request"""
         return await self.send_request(method="GET", endpoint=endpoint, **kwargs)
 
-    async def post(self, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
+    async def post(self, endpoint: str, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
         """Send a POST request"""
         return await self.send_request(method="POST", endpoint=endpoint, **kwargs)
