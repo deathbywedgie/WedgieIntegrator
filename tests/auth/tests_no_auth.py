@@ -7,6 +7,9 @@ from wedgieintegrator.config import APIConfig
 from wedgieintegrator.api_client import BaseAPIClient
 from wedgieintegrator.auth import NoAuth
 
+# ToDo this was supposed to just test this package with a no auth API, but it turned into more comprehensive testing.
+#  Revisit and rethink...
+
 @pytest.fixture
 def api_config():
     return APIConfig(base_url="https://jsonplaceholder.typicode.com", api_key=None, oauth_token=None)
