@@ -39,7 +39,7 @@ class BaseAPIClient:
         try:
             response = await self.client.send(request)
             response.raise_for_status()
-            logger.info("Received response", status_code=response.status_code, content=response.text)
+            logger.info("Received response", status_code=response.status_code)
             if self.response_model:
                 return self.response_model.parse_obj(response.json())
             return response.json()
