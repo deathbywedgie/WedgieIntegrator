@@ -1,5 +1,5 @@
 """
-For testing
+For testing WedgieIntegrator with a no auth API
 """
 
 import pytest
