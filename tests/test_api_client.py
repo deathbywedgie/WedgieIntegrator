@@ -1,6 +1,6 @@
 import pytest
 import httpx
-from wedgieintegrator.api_client import BaseAPIClient
+from wedgieintegrator.client import BaseAPIClient
 from wedgieintegrator.config import APIConfig
 from wedgieintegrator.auth import APIKeyAuth, OAuthAuth, BasicAuth, BearerTokenAuth
 from httpx import Request, Response

@@ -4,7 +4,7 @@ For testing WedgieIntegrator with a no auth API
 
 import pytest
 from wedgieintegrator.config import APIConfig
-from wedgieintegrator.api_client import BaseAPIClient
+from wedgieintegrator.client import BaseAPIClient
 from wedgieintegrator.auth import NoAuth
 
 # ToDo this was supposed to just test this package with a no auth API, but it turned into more comprehensive testing.
