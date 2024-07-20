@@ -2,6 +2,8 @@ import pytest
 from wedgieintegrator.utils import with_retries
 from tenacity import RetryError
 
+# ToDo Revisit this once I decide what I really want to offer with respect to retries
+
 class TestClient:
     def __init__(self):
         self.config = type('Config', (), {'retry_attempts': 3})

@@ -1,5 +1,7 @@
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+# ToDo Revisit this once I decide what I really want to offer with respect to retries
+
 def with_retries(func):
     """Decorator to add retries to a function based on config"""
     def wrapper(self, *args, **kwargs):

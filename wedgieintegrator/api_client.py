@@ -6,7 +6,6 @@ import structlog
 from .logging_config import configure_structlog
 from .config import APIConfig
 from .auth import AuthStrategy
-# from .utils import with_retries
 
 # Configure structlog
 configure_structlog()
@@ -29,7 +28,6 @@ class BaseAPIClient:
         if self.client:
             await self.client.aclose()
 
-    # @with_retries
     async def send_request(self, method: str, endpoint: str, **kwargs: Any) -> Union[dict, Any]:
         """Send an HTTP request with retries and authentication"""
         logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
