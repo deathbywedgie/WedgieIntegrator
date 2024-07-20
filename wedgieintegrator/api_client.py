@@ -1,11 +1,12 @@
 from pydantic import BaseModel, ValidationError
-from abc import ABC, abstractmethod
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from tenacity import RetryError
 from typing import Optional, Any, Type, Union
 import structlog
 import logging
-import base64
+from .config import APIConfig
+from .auth import AuthStrategy
+from .utils import with_retries
 
 # Configure structlog
 def configure_structlog():
@@ -21,74 +22,6 @@ def configure_structlog():
 
 configure_structlog()
 logger = structlog.get_logger()
-
-class APIConfig(BaseModel):
-    """Configuration model for API client"""
-    base_url: str
-    api_key: Optional[str] = None
-    oauth_token: Optional[str] = None
-    retry_attempts: int = 3
-    timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
-
-class AuthStrategy(ABC):
-    """Abstract base class for authentication strategies"""
-
-    @abstractmethod
-    def authenticate(self, request: httpx.Request):
-        """Apply authentication to the request"""
-        pass
-
-class APIKeyAuth(AuthStrategy):
-    """API key authentication strategy"""
-
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-
-    def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.api_key}"
-
-class OAuthAuth(AuthStrategy):
-    """OAuth token authentication strategy"""
-
-    def __init__(self, token: str):
-        self.token = token
-
-    def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.token}"
-
-class BearerTokenAuth(AuthStrategy):
-    """Bearer token authentication strategy"""
-
-    def __init__(self, token: str):
-        self.token = token
-
-    def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.token}"
-
-class BasicAuth(AuthStrategy):
-    """Basic authentication strategy"""
-
-    def __init__(self, username: str, password: str):
-        self.username = username
-        self.password = password
-
-    def authenticate(self, request: httpx.Request):
-        basic_auth_str = f"{self.username}:{self.password}"
-        encoded_auth_str = base64.b64encode(basic_auth_str.encode("utf-8")).decode("utf-8")
-        request.headers['Authorization'] = f"Basic {encoded_auth_str}"
-
-class NoAuth(AuthStrategy):
-    """No authentication strategy."""
-
-    def authenticate(self, request: httpx.Request):
-        pass
-
-def with_retries(func):
-    """Decorator to add retries to a function based on config"""
-    def wrapper(self, *args, **kwargs):
-        retry_decorator = retry(stop=stop_after_attempt(self.config.retry_attempts), wait=wait_exponential(min=1, max=10))
-        return retry_decorator(func)(self, *args, **kwargs)
-    return wrapper
 
 class BaseAPIClient:
     """Base class for API client"""
