@@ -3,7 +3,9 @@ For testing
 """
 
 import pytest
-from wedgieintegrator.api_client import APIConfig, NoAuth, BaseAPIClient
+from wedgieintegrator.config import APIConfig
+from wedgieintegrator.api_client import BaseAPIClient
+from wedgieintegrator.auth import NoAuth
 
 @pytest.fixture
 def api_config():

@@ -1,7 +1,8 @@
 import pytest
 import httpx
-from pydantic import BaseModel
-from wedgieintegrator.api_client import APIConfig, APIKeyAuth, OAuthAuth, BaseAPIClient, BearerTokenAuth, BasicAuth
+from wedgieintegrator.api_client import BaseAPIClient
+from wedgieintegrator.config import APIConfig
+from wedgieintegrator.auth import APIKeyAuth, OAuthAuth, BasicAuth, BearerTokenAuth
 from httpx import Request, Response
 from unittest.mock import patch
 
