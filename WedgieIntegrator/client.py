@@ -28,7 +28,7 @@ class BaseAPIClient:
         if self.client:
             await self.client.aclose()
 
-    async def send_request(self, method: str, endpoint: str, return_response: bool = False, raise_for_status=True, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
+    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs: Any) -> httpx.Response:
         """Send an HTTP request with retries and authentication"""
         logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
         if self.client is None:
@@ -41,10 +41,19 @@ class BaseAPIClient:
             logger.info("Received response", status_code=response.status_code)
             if raise_for_status:
                 response.raise_for_status()
+            return response
+        except httpx.HTTPStatusError as e:
+            logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
+            raise
+        except RetryError as e:
+            logger.error("Retry failed", error=str(e))
+            raise
 
-            if return_response:
-                return response
-
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, return_response: bool = False, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
+        response = await self._send_request(method=method, endpoint=endpoint, raise_for_status=raise_for_status, **kwargs)
+        if return_response:
+            return response
+        try:
             if self.response_model:
                 parsed_response = response.json()
                 return self.response_model.parse_obj(parsed_response)
@@ -56,12 +65,6 @@ class BaseAPIClient:
                 return response.text
             else:
                 return response.content
-        except httpx.HTTPStatusError as e:
-            logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
-            raise
-        except RetryError as e:
-            logger.error("Retry failed", error=str(e))
-            raise
         except ValidationError as e:
             logger.error("Response validation failed", error=str(e))
             raise
