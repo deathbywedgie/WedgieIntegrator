@@ -1,8 +1,8 @@
 import pytest
 import httpx
-from wedgieintegrator.client import BaseAPIClient
-from wedgieintegrator.config import APIConfig
-from wedgieintegrator.auth import APIKeyAuth, OAuthAuth, BasicAuth, BearerTokenAuth
+from WedgieIntegrator.client import BaseAPIClient
+from WedgieIntegrator.config import APIConfig
+from WedgieIntegrator.auth import APIKeyAuth, OAuthAuth, BasicAuth, BearerTokenAuth
 from httpx import Request, Response
 from unittest.mock import patch
 

@@ -1,4 +1,4 @@
-from wedgieintegrator.config import APIConfig
+from WedgieIntegrator.config import APIConfig
 
 def test_api_config_defaults():
     config = APIConfig(base_url="https://example.com")

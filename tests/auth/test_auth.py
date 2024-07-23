@@ -1,5 +1,5 @@
 import pytest
-from wedgieintegrator.auth import APIKeyAuth, OAuthAuth, BearerTokenAuth, BasicAuth, NoAuth
+from WedgieIntegrator.auth import APIKeyAuth, OAuthAuth, BearerTokenAuth, BasicAuth, NoAuth
 import httpx
 import base64
 

@@ -1,6 +1,6 @@
 import os
 import asyncio
-from wedgieintegrator import APIConfig, BaseAPIClient, BasicAuth
+from WedgieIntegrator import APIConfig, BaseAPIClient, BasicAuth
 
 # Load credentials from environment variables
 GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')

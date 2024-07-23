@@ -12,5 +12,5 @@ WedgieIntegrator is an async friendly package for Python which acts as API clien
 ## Installation
 
 ```bash
-pip install wedgieintegrator
+pip install WedgieIntegrator
 ```

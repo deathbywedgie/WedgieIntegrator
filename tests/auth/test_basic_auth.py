@@ -1,8 +1,8 @@
 import os
 import pytest
-from wedgieintegrator.config import APIConfig
-from wedgieintegrator.client import BaseAPIClient
-from wedgieintegrator.auth import BasicAuth
+from WedgieIntegrator.config import APIConfig
+from WedgieIntegrator.client import BaseAPIClient
+from WedgieIntegrator.auth import BasicAuth
 
 GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
 GITHUB_PASSWORD = os.getenv('GITHUB_PASSWORD')
