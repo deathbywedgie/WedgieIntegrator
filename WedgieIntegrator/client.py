@@ -28,7 +28,7 @@ class BaseAPIClient:
         if self.client:
             await self.client.aclose()
 
-    async def send_request(self, method: str, endpoint: str, return_response: bool = False, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
+    async def send_request(self, method: str, endpoint: str, return_response: bool = False, raise_for_status=True, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
         """Send an HTTP request with retries and authentication"""
         logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
         if self.client is None:
@@ -39,7 +39,8 @@ class BaseAPIClient:
         try:
             response = await self.client.send(request)
             logger.info("Received response", status_code=response.status_code)
-            response.raise_for_status()
+            if raise_for_status:
+                response.raise_for_status()
 
             if return_response:
                 return response
