@@ -2,14 +2,15 @@ from pydantic import BaseModel, ValidationError
 import httpx
 from tenacity import RetryError
 from typing import Optional, Any, Type, Union
-import structlog
-from .logging_config import configure_structlog
 from .config import APIConfig
 from .auth import AuthStrategy
 
-# Configure structlog
-configure_structlog()
-log = structlog.get_logger()
+import logging
+import structlog
+
+# Configure logging
+_logger = logging.getLogger(__name__)
+log = structlog.wrap_logger(_logger)
 
 class BaseAPIClient:
     """Base class for API client"""
