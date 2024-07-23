@@ -9,12 +9,15 @@ from .auth import AuthStrategy
 
 # Configure structlog
 configure_structlog()
-logger = structlog.get_logger()
+log = structlog.get_logger()
 
 class BaseAPIClient:
     """Base class for API client"""
+    VERBOSE = False
 
-    def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_model: Optional[Type[BaseModel]] = None):
+    def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_model: Optional[Type[BaseModel]] = None, verbose=False):
+        if verbose is not None:
+            self.VERBOSE = verbose
         self.config = config
         self.auth_strategy = auth_strategy
         self.response_model = response_model
@@ -30,9 +33,16 @@ class BaseAPIClient:
         if self.client:
             await self.client.aclose()
 
+    def log_verbose(self, msg, logger=None, **kwargs):
+        if not logger:
+            logger = log
+        if self.VERBOSE:
+            logger.debug(msg, **kwargs)
+
     async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs: Any) -> httpx.Response:
         """Send an HTTP request with retries and authentication"""
-        logger.info("Sending request", method=method, endpoint=endpoint, params=kwargs)
+        __logger = log.new(method=method, endpoint=endpoint)
+        __logger.debug("Sending request", params=kwargs)
         if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
 
@@ -40,15 +50,16 @@ class BaseAPIClient:
         self.auth_strategy.authenticate(request)
         try:
             response = await self.client.send(request)
-            logger.info("Received response", status_code=response.status_code)
+            self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
+            __logger.debug("Received response", status_code=response.status_code)
             if raise_for_status:
                 response.raise_for_status()
             return response
         except httpx.HTTPStatusError as e:
-            logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
+            __logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
             raise
         except RetryError as e:
-            logger.error("Retry failed", error=str(e))
+            __logger.error("Retry failed", error=str(e))
             raise
 
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, return_response: bool = False, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
@@ -59,7 +70,6 @@ class BaseAPIClient:
             if self.response_model:
                 parsed_response = response.json()
                 return self.response_model.parse_obj(parsed_response)
-
             content_type = response.headers.get('Content-Type', '')
             if 'application/json' in content_type:
                 return response.json()
@@ -68,7 +78,7 @@ class BaseAPIClient:
             else:
                 return response.content
         except ValidationError as e:
-            logger.error("Response validation failed", error=str(e))
+            log.error("Response validation failed", error=str(e), method=method, endpoint=endpoint)
             raise
 
     async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
