@@ -51,7 +51,6 @@ class BaseAPIClient:
         try:
             response = await self.client.send(request)
             self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
-            __logger.debug("Received response", status_code=response.status_code)
             if raise_for_status:
                 response.raise_for_status()
             return response
