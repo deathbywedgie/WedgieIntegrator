@@ -18,10 +18,10 @@ class BaseAPIClient:
         self.config = config
         self.auth_strategy = auth_strategy
         self.response_model = response_model
-        self.client: Optional[httpx.AsyncClient] = None
+        self.client = httpx.AsyncClient(base_url=self.config.base_url, timeout=self.config.timeout)  # Initialize client here
 
     async def __aenter__(self) -> 'BaseAPIClient':
-        self.client = httpx.AsyncClient(base_url=self.config.base_url, timeout=self.config.timeout)
+        # No need to initialize the client here as it is already initialized in __init__
         return self
 
     async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[Any]):
