@@ -8,4 +8,4 @@ class APIConfig(BaseModel):
     oauth_token: Optional[str] = None
     retry_attempts: int = 3
     timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
-    verify_ssl = True
+    verify_ssl: bool = True
