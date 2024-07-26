@@ -10,14 +10,11 @@ class AuthStrategy(ABC):
         """Apply authentication to the request"""
         pass
 
-class APIKeyAuth(AuthStrategy):
-    """API key authentication strategy"""
-
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+class NoAuth(AuthStrategy):
+    """No authentication strategy."""
 
     def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.api_key}"
+        pass
 
 class BasicAuth(AuthStrategy):
     """Basic authentication strategy"""
@@ -31,26 +28,28 @@ class BasicAuth(AuthStrategy):
         encoded_auth_str = base64.b64encode(basic_auth_str.encode("utf-8")).decode("utf-8")
         request.headers['Authorization'] = f"Basic {encoded_auth_str}"
 
-class BearerTokenAuth(AuthStrategy):
+class TokenAuth(AuthStrategy):
     """Bearer token authentication strategy"""
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, header_name: str, header_prefix: str):
         self.token = token
+        self.header_name = header_name
+        self.header_prefix = header_prefix
 
     def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.token}"
+        if self.header_prefix:
+            request.headers[self.header_name] = f"{self.header_prefix} {self.token}"
+        else:
+            request.headers[self.header_name] = self.token
 
-class NoAuth(AuthStrategy):
-    """No authentication strategy."""
+class BearerTokenAuth(TokenAuth):
+    """Bearer token authentication strategy"""
 
-    def authenticate(self, request: httpx.Request):
-        pass
+    def __post_init__(self, token: str):
+        super().__init__(token=token, header_name="Authorization", header_prefix="Bearer")
 
-class OAuthAuth(AuthStrategy):
+class OAuthAuth(TokenAuth):
     """OAuth token authentication strategy"""
 
-    def __init__(self, token: str):
-        self.token = token
-
-    def authenticate(self, request: httpx.Request):
-        request.headers['Authorization'] = f"Bearer {self.token}"
+    def __post_init__(self, token: str):
+        super().__init__(token=token, header_name="Authorization", header_prefix="Bearer")
