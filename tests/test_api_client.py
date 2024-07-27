@@ -2,11 +2,11 @@ import pytest
 import httpx
 from WedgieIntegrator.client import BaseAPIClient
 from WedgieIntegrator.config import APIConfig
-from WedgieIntegrator.auth import APIKeyAuth, OAuthAuth, BasicAuth, BearerTokenAuth
+from WedgieIntegrator.auth import BasicAuth, BearerTokenAuth, TokenAuth
 from httpx import Request, Response
 from unittest.mock import patch
 
-class MockAuth(APIKeyAuth):
+class MockAuth(TokenAuth):
     """Mock authentication strategy for testing"""
     def authenticate(self, request: Request) -> None:
         request.headers['Authorization'] = 'MockAuth'
@@ -17,7 +17,7 @@ def api_config():
 
 @pytest.fixture
 def api_client(api_config):
-    auth_strategy = MockAuth(api_key=api_config.api_key)
+    auth_strategy = MockAuth(token=api_config.api_key)
     return BaseAPIClient(config=api_config, auth_strategy=auth_strategy)
 
 def test_api_config(api_config):
@@ -30,17 +30,17 @@ def test_api_config(api_config):
 
 def test_auth_with_api_key():
     """Test APIKeyAuth authentication"""
-    auth = APIKeyAuth(api_key="dummy_api_key")
+    auth = TokenAuth(token="dummy_api_key")
     request = Request(method="GET", url="https://api.example.com")
     auth.authenticate(request)
     assert request.headers["Authorization"] == "Bearer dummy_api_key"
 
-def test_auth_with_oauth():
-    """Test OAuthAuth authentication"""
-    auth = OAuthAuth(token="dummy_oauth_token")
-    request = Request(method="GET", url="https://api.example.com")
-    auth.authenticate(request)
-    assert request.headers["Authorization"] == "Bearer dummy_oauth_token"
+# def test_auth_with_oauth():
+#     """Test OAuthAuth authentication"""
+#     auth = OAuthAuth(token="dummy_oauth_token")
+#     request = Request(method="GET", url="https://api.example.com")
+#     auth.authenticate(request)
+#     assert request.headers["Authorization"] == "Bearer dummy_oauth_token"
 
 def test_auth_with_bearer_token():
     """Test BearerTokenAuth authentication"""
@@ -81,9 +81,9 @@ async def test_post(mock_send, api_client):
     assert mock_send.call_args[1]["method"] == "POST"
 
 @pytest.mark.parametrize("auth_class, token, header_value", [
-    (APIKeyAuth, "dummy_api_key", "Bearer dummy_api_key"),
-    (OAuthAuth, "dummy_oauth_token", "Bearer dummy_oauth_token"),
+    # (OAuthAuth, "dummy_oauth_token", "Bearer dummy_oauth_token"),
     (BearerTokenAuth, "dummy_bearer_token", "Bearer dummy_bearer_token"),
+    (TokenAuth, "dummy_api_key", "Bearer dummy_api_key"),
 ])
 def test_auth(auth_class, token, header_value):
     """Test different authentication strategies"""

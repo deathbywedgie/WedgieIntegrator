@@ -21,42 +21,57 @@ class NoAuth(AuthStrategy):
 
 
 @dataclass
-class BasicAuth(AuthStrategy):
-    """Basic authentication strategy"""
-    username: str
-    password: str
-
-    def authenticate(self, request: Request):
-        basic_auth_str = f"{self.username}:{self.password}"
-        encoded_auth_str = base64.b64encode(basic_auth_str.encode("utf-8")).decode("utf-8")
-        request.headers['Authorization'] = f"Basic {encoded_auth_str}"
-
-
-@dataclass
-class TokenAuth(AuthStrategy):
+class HeaderAuth(AuthStrategy):
     """Generic token authentication strategy"""
-    token: str
-    header_name: str
-    header_prefix: str
+    header_name: str = "Authorization"
+    header_prefix: str = None
+
+    def __init__(self, secret: str):
+        self.__secret = secret
 
     def authenticate(self, request: Request):
+        if not self.__secret:
+            return
         if self.header_prefix:
-            request.headers[self.header_name] = f"{self.header_prefix} {self.token}"
+            request.headers['Authorization'] = f"{self.header_prefix} {self.__secret}"
         else:
-            request.headers[self.header_name] = self.token
+            request.headers['Authorization'] = self.__secret
 
 
-@dataclass
+class BasicAuth(HeaderAuth):
+    """Basic authentication strategy"""
+    header_prefix = "Basic"
+
+    def __init__(self, username, password, header_name: str = None, header_prefix: str = None):
+        if header_name is not None:
+            self.header_name = header_name
+        if header_prefix is not None:
+            self.header_prefix = header_prefix
+        basic_auth_str = f"{username}:{password}"
+        super().__init__(secret=base64.b64encode(basic_auth_str.encode("utf-8")).decode("utf-8"))
+
+
+class TokenAuth(HeaderAuth):
+    """Generic token authentication strategy"""
+    header_prefix: str = "Bearer"
+
+    def __init__(self, token: str, header_name: str = None, header_prefix: str = None):
+        if header_name is not None:
+            self.header_name = header_name
+        if header_prefix is not None:
+            self.header_prefix = header_prefix
+        super().__init__(secret = token)
+
+
 class BearerTokenAuth(TokenAuth):
     """Bearer token authentication strategy"""
-    token: str
-    header_name: str = "Authorization"
-    header_prefix: str = "Bearer"
+    def __init__(self, token: str):
+        super().__init__(token=token)
 
 
-@dataclass
-class OAuthAuth(TokenAuth):
-    """OAuth token authentication strategy"""
-    token: str
-    header_name: str = "Authorization"
-    header_prefix: str = "Bearer"
+# @dataclass
+# class OAuthAuth(TokenAuth):
+#     """OAuth token authentication strategy"""
+#     token: str
+#     header_name: str = "Authorization"
+#     header_prefix: str = "Bearer"
