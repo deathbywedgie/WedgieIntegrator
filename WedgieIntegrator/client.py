@@ -40,7 +40,7 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
-    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs: Any) -> httpx.Response:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
         __logger.debug("Sending request", params=kwargs)
@@ -54,32 +54,29 @@ class BaseAPIClient:
             self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
             if raise_for_status:
                 response.raise_for_status()
-            return response
         except httpx.HTTPStatusError as e:
             __logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
             raise
         except RetryError as e:
             __logger.error("Retry failed", error=str(e))
             raise
-
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, return_response: bool = False, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
-        response = await self._send_request(method=method, endpoint=endpoint, raise_for_status=raise_for_status, **kwargs)
-        if return_response:
+        if not extract_content:
             return response
         try:
+            content_type = response.headers.get('Content-Type', '')
             if self.response_model:
                 parsed_response = response.json()
-                return self.response_model.parse_obj(parsed_response)
-            content_type = response.headers.get('Content-Type', '')
-            if 'application/json' in content_type:
-                return response.json()
+                content = self.response_model.parse_obj(parsed_response)
+            elif 'application/json' in content_type:
+                content = response.json()
             elif 'text/' in content_type:
-                return response.text
+                content = response.text
             else:
-                return response.content
+                content = response.content
         except ValidationError as e:
             log.error("Response validation failed", error=str(e), method=method, endpoint=endpoint)
             raise
+        return response, content
 
     async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
         """Send a GET request"""
