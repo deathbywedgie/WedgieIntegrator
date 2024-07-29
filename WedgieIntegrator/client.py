@@ -20,43 +20,25 @@ class APIResponse:
     content: Union[dict, Any]
     content_type: str
     __content = None
-    __content_type = None
 
-    def __init__(self, api_client, response: httpx.Response):
+    def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
+        self.response_model = response_model
         self.__client = api_client
         self.response = response
+        self.content_type = response.headers.get('Content-Type', '')
 
-    @property
-    def content_type(self):
-        if self.__content_type is None:
-            self.__content_type = self._parse_content_type(response=self.response)
-        return self.__content_type
-
-    @property
-    def content(self):
-        if self.__content is None:
-            self.__content = self._parse_content(response=self.response)
+    async def parse(self):
+        if not self.__content:
+            if self.response_model:
+                parsed_response = await asyncio.to_thread(self.response.json)
+                self.__content = self.response_model.parse_obj(parsed_response)
+            elif 'application/json' in self.content_type:
+                self.__content = await asyncio.to_thread(self.response.json)
+            elif 'text/' in self.content_type:
+                self.__content = self.response.text
+            else:
+                self.__content = self.response.content
         return self.__content
-
-    @content.setter
-    def content(self, value):
-        self.__content = value
-
-    @staticmethod
-    def _parse_content_type(response: httpx.Response):
-        return response.headers.get('Content-Type', '')
-
-    def _parse_content(self, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
-        content_type = self._parse_content_type(response)
-        if response_model:
-            parsed_response = asyncio.run(asyncio.to_thread(response.json))
-            return response_model.parse_obj(parsed_response)
-        elif 'application/json' in content_type:
-            return asyncio.run(asyncio.to_thread(response.json))
-        elif 'text/' in content_type:
-            return response.text
-        else:
-            return response.content
 
 
 class BaseAPIClient:
@@ -107,7 +89,7 @@ class BaseAPIClient:
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
 
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs) -> APIResponse:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs) -> Union[httpx.Response, APIResponse]:
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
         __logger.debug("Sending request", params=kwargs)
