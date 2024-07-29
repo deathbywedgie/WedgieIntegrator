@@ -1,7 +1,12 @@
 from httpx import HTTPStatusError
 
 
-class RateLimitError(HTTPStatusError): ...
+class BaseClientException(BaseException):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
-class TemporaryRateLimitError(RateLimitError): ...
+class RateLimitError(HTTPStatusError, BaseClientException): ...
+
+
+class TemporaryRateLimitError(RateLimitError, BaseClientException): ...
