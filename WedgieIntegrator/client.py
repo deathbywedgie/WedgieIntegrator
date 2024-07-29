@@ -40,7 +40,7 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs: Any):
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
         __logger.debug("Sending request", params=kwargs)
