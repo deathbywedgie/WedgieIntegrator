@@ -127,7 +127,7 @@ class APIResponse:
             self.content = self.response.content
 
 
-class ExtendedAPIClient(BaseAPIClient):
+class APIClient(BaseAPIClient):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
