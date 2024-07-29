@@ -48,7 +48,7 @@ class APIResponse:
             parsed_response = asyncio.run(asyncio.to_thread(response.json))
             return response_model.parse_obj(parsed_response)
         elif 'application/json' in content_type:
-            return asyncio.to_thread(response.json)
+            return asyncio.run(asyncio.to_thread(response.json))
         elif 'text/' in content_type:
             return response.text
         else:
