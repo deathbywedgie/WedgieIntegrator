@@ -103,7 +103,7 @@ class BaseAPIClient:
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
 
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs):
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs) -> APIResponse:
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
         __logger.debug("Sending request", params=kwargs)
