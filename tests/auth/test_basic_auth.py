@@ -23,7 +23,8 @@ def api_client(api_config):
 async def test_get_authenticated_user(api_client):
     """Test GET request to retrieve authenticated user's details"""
     async with api_client:
-        response = await api_client.get(endpoint="/user")
+        response_obj = await api_client.get(endpoint="/user")
+        response = await response_obj.parse()
         assert isinstance(response, dict)
         assert 'login' in response
 
@@ -31,7 +32,8 @@ async def test_get_authenticated_user(api_client):
 async def test_get_user_repos(api_client):
     """Test GET request to retrieve authenticated user's repositories"""
     async with api_client:
-        response = await api_client.get(endpoint="/user/repos")
+        response_obj = await api_client.get(endpoint="/user/repos")
+        response = await response_obj.parse()
         assert isinstance(response, list)
         if response:
             assert 'name' in response[0]
@@ -45,7 +47,8 @@ async def test_create_repo(api_client):
         'private': False
     }
     async with api_client:
-        response = await api_client.post(endpoint="/user/repos", json=repo_data)
+        response_obj = await api_client.post(endpoint="/user/repos", json=repo_data)
+        response = await response_obj.parse()
         assert isinstance(response, dict)
         assert response['name'] == TEST_REPO_NAME
         assert response['description'] == 'This is a test repository'
@@ -59,7 +62,8 @@ async def test_update_repo(api_client):
         'private': False
     }
     async with api_client:
-        response = await api_client.send_request(method="PATCH", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}", json=update_data)
+        response_obj = await api_client.send_request(method="PATCH", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}", json=update_data)
+        response = await response_obj.parse()
         assert isinstance(response, dict)
         assert response['description'] == 'This is an updated test repository'
 
@@ -67,5 +71,5 @@ async def test_update_repo(api_client):
 async def test_delete_repo(api_client):
     """Test DELETE request to delete a repository"""
     async with api_client:
-        response = await api_client.send_request(method="DELETE", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}", return_response=True)
-        assert response.status_code == 204  # No content
+        response_obj = await api_client.send_request(method="DELETE", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}")
+        assert response_obj.response.status_code == 204  # No content

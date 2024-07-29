@@ -23,7 +23,8 @@ def api_client(api_config):
 async def test_get_all_posts(api_client):
     """Test GET request to retrieve all posts"""
     async with api_client:
-        response = await api_client.get(endpoint="/posts")
+        response_obj = await api_client.get(endpoint="/posts")
+        response = await response_obj.parse()
         assert isinstance(response, list)
         assert len(response) > 0
         assert 'id' in response[0]
@@ -32,7 +33,8 @@ async def test_get_all_posts(api_client):
 async def test_get_single_post(api_client):
     """Test GET request to retrieve a single post"""
     async with api_client:
-        response = await api_client.get(endpoint="/posts/1")
+        response_obj = await api_client.get(endpoint="/posts/1")
+        response = await response_obj.parse()
         assert isinstance(response, dict)
         assert response['id'] == 1
 
@@ -45,7 +47,8 @@ async def test_create_post(api_client):
         'userId': 1
     }
     async with api_client:
-        response = await api_client.post(endpoint="/posts", json=post_data)
+        response_obj = await api_client.post(endpoint="/posts", json=post_data)
+        response = await response_obj.parse()
         assert isinstance(response, dict)
         assert response['title'] == 'foo'
         assert response['body'] == 'bar'
@@ -61,7 +64,8 @@ async def test_update_post(api_client):
         'userId': 1
     }
     async with api_client:
-        response = await api_client.send_request(method="PUT", endpoint="/posts/1", json=update_data)
+        response_obj = await api_client.send_request(method="PUT", endpoint="/posts/1", json=update_data)
+        response = await response_obj.parse()
         assert isinstance(response, dict)
         assert response['title'] == 'foo'
         assert response['body'] == 'bar'
@@ -70,5 +74,6 @@ async def test_update_post(api_client):
 async def test_delete_post(api_client):
     """Test DELETE request to delete a post"""
     async with api_client:
-        response = await api_client.send_request(method="DELETE", endpoint="/posts/1")
+        response_obj = await api_client.send_request(method="DELETE", endpoint="/posts/1")
+        response = await response_obj.parse()
         assert response == {}
