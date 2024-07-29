@@ -29,22 +29,30 @@ class APIResponse:
     @property
     def content_type(self):
         if self.__content_type is None:
-            self.__content_type = self.response.headers.get('Content-Type', '')
+            self.__content_type = self._parse_content_type(response=self.response)
         return self.__content_type
 
     @property
     def content(self):
         if self.__content is None:
-            if self.__client.response_model:
-                parsed_response = asyncio.to_thread(self.response.json)
-                self.__content = self.__client.response_model.parse_obj(parsed_response)
-            elif 'application/json' in self.content_type:
-                self.__content = asyncio.to_thread(self.response.json)
-            elif 'text/' in self.content_type:
-                self.__content = self.response.text
-            else:
-                self.__content = self.response.content
+            self.__content = self._parse_content(response=self.response)
         return self.__content
+
+    @staticmethod
+    def _parse_content_type(response: httpx.Response):
+        return response.headers.get('Content-Type', '')
+
+    def _parse_content(self, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
+        content_type = self._parse_content_type(response)
+        if response_model:
+            parsed_response = asyncio.to_thread(response.json)
+            return response_model.parse_obj(parsed_response)
+        elif 'application/json' in content_type:
+            return asyncio.to_thread(response.json)
+        elif 'text/' in content_type:
+            return response.text
+        else:
+            return response.content
 
 
 class BaseAPIClient:
