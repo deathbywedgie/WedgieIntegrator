@@ -38,6 +38,10 @@ class APIResponse:
             self.__content = self._parse_content(response=self.response)
         return self.__content
 
+    @content.setter
+    def content(self, value):
+        self.__content = value
+
     @staticmethod
     def _parse_content_type(response: httpx.Response):
         return response.headers.get('Content-Type', '')
