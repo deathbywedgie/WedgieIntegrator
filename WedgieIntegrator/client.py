@@ -4,6 +4,7 @@ from tenacity import RetryError
 from typing import Optional, Any, Type, Union
 from .config import APIConfig
 from .auth import AuthStrategy
+from .exceptions import *
 
 import logging
 import structlog
@@ -40,6 +41,16 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
+    def is_rate_limit_error(self, response: httpx.Response) -> bool:
+        """Check if the response indicates a rate limit error"""
+        return response.status_code == 429
+
+    def is_temporary_rate_limit_error(self, response: httpx.Response) -> bool:
+        """
+        Check if the response indicates a temporary rate limit error, which is not always applicable
+        """
+        return False
+
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs: Any):
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
@@ -52,6 +63,10 @@ class BaseAPIClient:
         try:
             response = await self.client.send(request)
             self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
+            if self.is_rate_limit_error(response) is True:
+                raise RateLimitError("Rate limit error", request=request, response=response)
+            if self.is_temporary_rate_limit_error(response) is True:
+                raise RateLimitError("Temporary rate limit error", request=request, response=response)
             if raise_for_status:
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
