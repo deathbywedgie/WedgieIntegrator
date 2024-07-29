@@ -28,7 +28,7 @@ class APIResponse:
         self.content_type = response.headers.get('Content-Type', '')
 
     async def parse(self):
-        if not self.__content:
+        if self.__content is None:
             if self.response_model:
                 parsed_response = await asyncio.to_thread(self.response.json)
                 self.__content = self.response_model.parse_obj(parsed_response)
