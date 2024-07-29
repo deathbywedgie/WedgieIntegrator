@@ -13,6 +13,7 @@ import structlog
 _logger = logging.getLogger(__name__)
 log = structlog.wrap_logger(_logger)
 
+
 class BaseAPIClient:
     """Base class for API client"""
     VERBOSE = False
@@ -41,17 +42,26 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
-    def is_rate_limit_error(self, response: httpx.Response) -> bool:
+    @staticmethod
+    def is_rate_limit_error(response: httpx.Response) -> bool:
         """Check if the response indicates a rate limit error"""
-        return response.status_code == 429
-
-    def is_temporary_rate_limit_error(self, response: httpx.Response) -> bool:
-        """
-        Check if the response indicates a temporary rate limit error, which is not always applicable
-        """
         return False
 
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs: Any):
+    @staticmethod
+    def is_temporary_rate_limit_error(response: httpx.Response) -> bool:
+        """Check if the response indicates a temporary rate limit error, which is not always applicable"""
+        return False
+
+    @staticmethod
+    def is_pagination(response: httpx.Response) -> Optional[dict]:
+        """Check if the response indicates pagination and return pagination information if available"""
+        return None
+
+    def continue_pagination(self, response: httpx.Response):
+        """Parse pagination details and continue requests until all results are returned"""
+        raise NotImplementedError("No default pagination method currently implemented")
+
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, extract_content: bool = True, **kwargs):
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
         __logger.debug("Sending request", params=kwargs)
@@ -78,25 +88,68 @@ class BaseAPIClient:
         if not extract_content:
             return response
         try:
-            content_type = response.headers.get('Content-Type', '')
-            if self.response_model:
-                parsed_response = response.json()
-                content = self.response_model.parse_obj(parsed_response)
-            elif 'application/json' in content_type:
-                content = response.json()
-            elif 'text/' in content_type:
-                content = response.text
-            else:
-                content = response.content
+            if self.is_pagination(response):
+                return self.continue_pagination(response)
+            response_obj = APIResponse(self, response)
+            await response_obj.extract_response_content()
+            return response_obj
         except ValidationError as e:
             log.error("Response validation failed", error=str(e), method=method, endpoint=endpoint)
             raise
-        return response, content
 
-    async def get(self, endpoint: str, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
+    async def get(self, endpoint: str, **kwargs) -> Union[dict, Any, httpx.Response]:
         """Send a GET request"""
         return await self.send_request(method="GET", endpoint=endpoint, **kwargs)
 
-    async def post(self, endpoint: str, **kwargs: Any) -> Union[dict, Any, httpx.Response]:
+    async def post(self, endpoint: str, **kwargs) -> Union[dict, Any, httpx.Response]:
         """Send a POST request"""
         return await self.send_request(method="POST", endpoint=endpoint, **kwargs)
+
+
+class APIResponse:
+    response: httpx.Response
+    content: Union[dict, Any]
+
+    def __init__(self, api_client: BaseAPIClient, response: httpx.Response):
+        self.__client = api_client
+        self.response = response
+
+    async def extract_response_content(self):
+        content_type = self.response.headers.get('Content-Type', '')
+        if self.__client.response_model:
+            parsed_response = self.response.json()
+            self.content = self.__client.response_model.parse_obj(parsed_response)
+        elif 'application/json' in content_type:
+            self.content = self.response.json()
+        elif 'text/' in content_type:
+            self.content = self.response.text
+        else:
+            self.content = self.response.content
+
+
+class ExtendedAPIClient(BaseAPIClient):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def is_rate_limit_error(response: httpx.Response) -> bool:
+        """Check if the response indicates a rate limit error"""
+        return response.status_code == 429
+
+    def is_pagination(self, response: httpx.Response) -> Optional[dict]:
+        """Check if the response indicates pagination and return pagination information if available"""
+        link_header = response.headers.get('Link')
+        if link_header:
+            links = {}
+            for link in link_header.split(','):
+                parts = link.split(';')
+                url = parts[0].strip('<> ')
+                rel = parts[1].strip().split('=')[1].strip('"')
+                links[rel] = url
+            return links
+        return None
+
+    def continue_pagination(self, response: httpx.Response):
+        """Parse pagination details and continue requests until all results are returned"""
+        raise NotImplementedError("No default pagination method currently implemented")
