@@ -45,7 +45,7 @@ class APIResponse:
     def _parse_content(self, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
         content_type = self._parse_content_type(response)
         if response_model:
-            parsed_response = asyncio.to_thread(response.json)
+            parsed_response = asyncio.run(asyncio.to_thread(response.json))
             return response_model.parse_obj(parsed_response)
         elif 'application/json' in content_type:
             return asyncio.to_thread(response.json)
