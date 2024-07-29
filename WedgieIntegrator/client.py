@@ -5,6 +5,7 @@ from typing import Optional, Any, Type, Union
 from .config import APIConfig
 from .auth import AuthStrategy
 from .exceptions import *
+import asyncio
 
 import logging
 import structlog
@@ -14,15 +15,48 @@ _logger = logging.getLogger(__name__)
 log = structlog.wrap_logger(_logger)
 
 
+class APIResponse:
+    response: httpx.Response
+    content: Union[dict, Any]
+    content_type: str
+    __content = None
+    __content_type = None
+
+    def __init__(self, api_client, response: httpx.Response):
+        self.__client = api_client
+        self.response = response
+
+    @property
+    def content_type(self):
+        if self.__content_type is None:
+            self.__content_type = self.response.headers.get('Content-Type', '')
+        return self.__content_type
+
+    @property
+    def content(self):
+        if self.__content is None:
+            if self.__client.response_model:
+                parsed_response = asyncio.to_thread(self.response.json)
+                self.__content = self.__client.response_model.parse_obj(parsed_response)
+            elif 'application/json' in self.content_type:
+                self.__content = asyncio.to_thread(self.response.json)
+            elif 'text/' in self.content_type:
+                self.__content = self.response.text
+            else:
+                self.__content = self.response.content
+        return self.__content
+
+
 class BaseAPIClient:
     """Base class for API client"""
     VERBOSE = False
 
-    def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_model: Optional[Type[BaseModel]] = None, verbose=False):
+    def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_class: APIResponse = None, response_model: Optional[Type[BaseModel]] = None, verbose=False):
         if verbose is not None:
             self.VERBOSE = verbose
         self.config = config
         self.auth_strategy = auth_strategy
+        self.response_class = response_class or APIResponse
         self.response_model = response_model
         # Initialize client here
         self.client = httpx.AsyncClient(
@@ -90,9 +124,7 @@ class BaseAPIClient:
         try:
             if self.is_pagination(response):
                 return self.continue_pagination(response)
-            response_obj = APIResponse(self, response)
-            await response_obj.extract_response_content()
-            return response_obj
+            return self.response_class(self, response)
         except ValidationError as e:
             log.error("Response validation failed", error=str(e), method=method, endpoint=endpoint)
             raise
@@ -104,27 +136,6 @@ class BaseAPIClient:
     async def post(self, endpoint: str, **kwargs) -> Union[dict, Any, httpx.Response]:
         """Send a POST request"""
         return await self.send_request(method="POST", endpoint=endpoint, **kwargs)
-
-
-class APIResponse:
-    response: httpx.Response
-    content: Union[dict, Any]
-
-    def __init__(self, api_client: BaseAPIClient, response: httpx.Response):
-        self.__client = api_client
-        self.response = response
-
-    async def extract_response_content(self):
-        content_type = self.response.headers.get('Content-Type', '')
-        if self.__client.response_model:
-            parsed_response = self.response.json()
-            self.content = self.__client.response_model.parse_obj(parsed_response)
-        elif 'application/json' in content_type:
-            self.content = self.response.json()
-        elif 'text/' in content_type:
-            self.content = self.response.text
-        else:
-            self.content = self.response.content
 
 
 class APIClient(BaseAPIClient):
