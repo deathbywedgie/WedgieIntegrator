@@ -1,11 +1,13 @@
-from pydantic import BaseModel, ValidationError
-import httpx
-from tenacity import RetryError
-from typing import Optional, Any, Type, Union
-from .config import APIConfig
-from .auth import AuthStrategy
-from .exceptions import *
 import asyncio
+from typing import Optional, Any, Type, Union
+
+import httpx
+from pydantic import BaseModel, ValidationError
+from tenacity import RetryError
+
+from .auth import AuthStrategy
+from .config import APIConfig
+from .exceptions import *
 
 import logging
 import structlog
