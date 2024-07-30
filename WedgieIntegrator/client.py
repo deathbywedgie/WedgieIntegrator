@@ -19,7 +19,8 @@ log = structlog.wrap_logger(_logger)
 
 class BaseAPIClient:
     """Base class for API client"""
-    VERBOSE = False
+    VERBOSE: bool = False
+    is_failed: bool = True
 
     def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_class: APIResponse = None, response_model: Optional[Type[BaseModel]] = None, verbose=False):
         if verbose is not None:
@@ -58,7 +59,10 @@ class BaseAPIClient:
 
     async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
         """Send an HTTP request with retries and authentication"""
-        __logger = log.new(method=method, url_endpoint=endpoint)
+        __logger = log.new(method=method, url=endpoint)
+        if self.is_failed:
+            __logger.fatal("Failure reported; aborting tasks")
+            raise TaskAborted("Failure reported; aborting tasks")
         __logger.debug("Sending request")
         if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
@@ -82,7 +86,7 @@ class BaseAPIClient:
             __logger.error("Retry failed", error=str(e))
             raise
         except ValidationError as e:
-            log.error("Response validation failed", error=str(e), method=method, endpoint=endpoint)
+            log.error("Response validation failed", error=str(e), method=method, url=endpoint)
             raise
         return response_obj
 
