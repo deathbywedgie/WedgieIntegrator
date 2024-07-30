@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod
-from httpx import Request
 import base64
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
+from httpx import Request
 
 
 class AuthStrategy(ABC):
@@ -60,11 +61,12 @@ class TokenAuth(HeaderAuth):
             self.header_name = header_name
         if header_prefix is not None:
             self.header_prefix = header_prefix
-        super().__init__(secret = token)
+        super().__init__(secret=token)
 
 
 class BearerTokenAuth(TokenAuth):
     """Bearer token authentication strategy"""
+
     def __init__(self, token: str):
         super().__init__(token=token)
 
