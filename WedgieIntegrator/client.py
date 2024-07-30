@@ -104,8 +104,8 @@ class BaseAPIClient:
 
     async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
         """Send an HTTP request with retries and authentication"""
-        __logger = log.new(method=method, endpoint=endpoint)
-        __logger.debug("Sending request", params=kwargs)
+        __logger = log.new(method=method, url_endpoint=endpoint)
+        __logger.debug("Sending request")
         if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
 
