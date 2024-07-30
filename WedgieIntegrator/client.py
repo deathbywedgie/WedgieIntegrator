@@ -90,11 +90,11 @@ class BaseAPIClient:
             raise
         return response_obj
 
-    async def get(self, endpoint: str, **kwargs) -> Union[dict, Any, httpx.Response]:
+    async def get(self, endpoint: str, **kwargs):
         """Send a GET request"""
         return await self.send_request(method="GET", endpoint=endpoint, **kwargs)
 
-    async def post(self, endpoint: str, **kwargs) -> Union[dict, Any, httpx.Response]:
+    async def post(self, endpoint: str, **kwargs):
         """Send a POST request"""
         return await self.send_request(method="POST", endpoint=endpoint, **kwargs)
 
