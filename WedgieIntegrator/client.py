@@ -20,7 +20,7 @@ class BaseAPIResponse:
     content: Union[dict, Any]
     content_type: str
     is_rate_limit_error: bool = False
-    is_temporary_rate_limit_error: bool = False
+    is_rate_limit_failure: bool = False
     is_pagination: bool = False
     pagination_links: dict = None
     __content = None
@@ -117,8 +117,8 @@ class BaseAPIClient:
             response_obj = self.response_class(api_client=self, response=response)
             if response_obj.is_rate_limit_error is True:
                 raise RateLimitError("Rate limit error", request=request, response=response)
-            if response_obj.is_temporary_rate_limit_error is True:
-                raise TemporaryRateLimitError("Temporary rate limit error", request=request, response=response)
+            if response_obj.is_rate_limit_failure is True:
+                raise RateLimitFailure("Rate limit failure", request=request, response=response)
             if raise_for_status:
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
