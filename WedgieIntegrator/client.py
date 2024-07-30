@@ -57,6 +57,12 @@ class BaseAPIClient:
             return await self.continue_request_pagination(response_obj, method=method, endpoint=endpoint, **kwargs)
         return response_obj
 
+    async def create_response_object(self, response: httpx.Response):
+        response_obj = self.response_class(api_client=self, response=response, response_model=self.response_model)
+        if response_obj.content is None and hasattr(response_obj, "_async_pre_parsing"):
+            _ = await getattr(response_obj, "_async_pre_parsing")()
+        return response_obj
+
     async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, url=endpoint)
@@ -72,7 +78,7 @@ class BaseAPIClient:
         try:
             response = await self.client.send(request)
             self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
-            response_obj = self.response_class(api_client=self, response=response, response_model=self.response_model)
+            response_obj = await self.create_response_object(response=response)
             if response_obj.is_rate_limit_error is True:
                 raise RateLimitError("Rate limit error", request=request, response=response)
             if response_obj.is_rate_limit_failure is True:
