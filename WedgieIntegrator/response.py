@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class BaseAPIResponse:
     response: httpx.Response
+    response_model: Optional[Type[BaseModel]] = None
     content: Union[dict, Any]
     content_type: str
     is_rate_limit_error: bool = False
@@ -14,20 +15,24 @@ class BaseAPIResponse:
     is_pagination: bool = False
     pagination_links: dict = None
     __content = None
+    additional_json_content_types: list = None 
 
     def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
-        self.response_model = response_model
-        self.__client = api_client
         self.response = response
+        self.response_model = response_model
         self.content_type = response.headers.get('Content-Type', '')
+        self.content = self._parse_content()
+        self.__client = api_client
 
-    async def parse(self):
+    def _parse_content(self):
         if self.__content is None:
             if self.response_model:
-                parsed_response = await asyncio.to_thread(self.response.json)
+                parsed_response = asyncio.run(asyncio.to_thread(self.response.json))
                 self.__content = self.response_model.parse_obj(parsed_response)
             elif 'application/json' in self.content_type:
-                self.__content = await asyncio.to_thread(self.response.json)
+                self.__content = asyncio.run(asyncio.to_thread(self.response.json))
+            elif self.additional_json_content_types and self.content_type in self.additional_json_content_types:
+                self.__content = asyncio.run(asyncio.to_thread(self.response.json))
             elif 'text/' in self.content_type:
                 self.__content = self.response.text
             else:
