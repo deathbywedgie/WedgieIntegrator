@@ -92,14 +92,14 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
-    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
+    async def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
 
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
         response_obj = await self._send_request(method=method, endpoint=endpoint, raise_for_status=raise_for_status, **kwargs)
         if response_obj.is_pagination:
-            return self.continue_request_pagination(response_obj, method=method, endpoint=endpoint, **kwargs)
+            return await self.continue_request_pagination(response_obj, method=method, endpoint=endpoint, **kwargs)
         return response_obj
 
     async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
@@ -146,6 +146,6 @@ class APIClient(BaseAPIClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
+    async def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
