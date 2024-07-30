@@ -6,7 +6,7 @@ from tenacity import RetryError
 
 from .auth import AuthStrategy
 from .config import APIConfig
-from .custom_exceptions import *
+from .exceptions import *
 from .response import APIResponse
 
 import logging
