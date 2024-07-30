@@ -1,6 +1,6 @@
 import pytest
 import httpx
-from WedgieIntegrator.client import BaseAPIClient, APIClient, BaseAPIResponse, APIResponse
+from WedgieIntegrator.client import APIClient
 from WedgieIntegrator.config import APIConfig
 from WedgieIntegrator.auth import BasicAuth, BearerTokenAuth, TokenAuth
 from httpx import Request, Response
@@ -18,7 +18,7 @@ def api_config():
 @pytest.fixture
 def api_client(api_config):
     auth_strategy = MockAuth(token="dummy_api_key")
-    return BaseAPIClient(config=api_config, auth_strategy=auth_strategy)
+    return APIClient(config=api_config, auth_strategy=auth_strategy)
 
 def test_api_config(api_config):
     """Test APIConfig initialization"""
@@ -60,8 +60,7 @@ def test_auth_with_basic_auth():
 async def test_send_request(mock_send, api_client):
     """Test sending an HTTP request"""
     response_obj = await api_client.send_request(method="GET", endpoint="/test")
-    content = await response_obj.parse()
-    assert content == {"key": "value"}
+    assert response_obj.content == {"key": "value"}
     # ToDo revisit
     # assert mock_send.call_args[1]["method"] == "GET"
 
@@ -70,8 +69,7 @@ async def test_send_request(mock_send, api_client):
 async def test_get(mock_send, api_client):
     """Test sending a GET request"""
     response_obj = await api_client.get(endpoint="/test")
-    content = await response_obj.parse()
-    assert content == {"key": "value"}
+    assert response_obj.content == {"key": "value"}
     # ToDo revisit
     # assert mock_send.call_args[1]["method"] == "GET"
 
@@ -80,8 +78,7 @@ async def test_get(mock_send, api_client):
 async def test_post(mock_send, api_client):
     """Test sending a POST request"""
     response_obj = await api_client.post(endpoint="/test")
-    content = await response_obj.parse()
-    assert content == {"key": "value"}
+    assert response_obj.content == {"key": "value"}
     # ToDo revisit
     # assert mock_send.call_args[1]["method"] == "POST"
 

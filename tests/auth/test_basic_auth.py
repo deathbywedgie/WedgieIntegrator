@@ -24,19 +24,17 @@ async def test_get_authenticated_user(api_client):
     """Test GET request to retrieve authenticated user's details"""
     async with api_client:
         response_obj = await api_client.get(endpoint="/user")
-        response = await response_obj.parse()
-        assert isinstance(response, dict)
-        assert 'login' in response
+        assert isinstance(response_obj.content, dict)
+        assert 'login' in response_obj.content
 
 @pytest.mark.asyncio
 async def test_get_user_repos(api_client):
     """Test GET request to retrieve authenticated user's repositories"""
     async with api_client:
         response_obj = await api_client.get(endpoint="/user/repos")
-        response = await response_obj.parse()
-        assert isinstance(response, list)
-        if response:
-            assert 'name' in response[0]
+        assert isinstance(response_obj.content, list)
+        if response_obj.content:
+            assert 'name' in response_obj.content[0]
 
 @pytest.mark.asyncio
 async def test_create_repo(api_client):
@@ -48,10 +46,9 @@ async def test_create_repo(api_client):
     }
     async with api_client:
         response_obj = await api_client.post(endpoint="/user/repos", json=repo_data)
-        response = await response_obj.parse()
-        assert isinstance(response, dict)
-        assert response['name'] == TEST_REPO_NAME
-        assert response['description'] == 'This is a test repository'
+        assert isinstance(response_obj.content, dict)
+        assert response_obj.content['name'] == TEST_REPO_NAME
+        assert response_obj.content['description'] == 'This is a test repository'
 
 @pytest.mark.asyncio
 async def test_update_repo(api_client):
@@ -63,9 +60,8 @@ async def test_update_repo(api_client):
     }
     async with api_client:
         response_obj = await api_client.send_request(method="PATCH", endpoint=f"/repos/{GITHUB_USERNAME}/{TEST_REPO_NAME}", json=update_data)
-        response = await response_obj.parse()
-        assert isinstance(response, dict)
-        assert response['description'] == 'This is an updated test repository'
+        assert isinstance(response_obj.content, dict)
+        assert response_obj.content['description'] == 'This is an updated test repository'
 
 @pytest.mark.asyncio
 async def test_delete_repo(api_client):
