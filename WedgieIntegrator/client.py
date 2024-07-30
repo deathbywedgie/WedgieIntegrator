@@ -1,4 +1,4 @@
-from typing import Optional, Any, Type, Union
+from typing import Optional, Any, Type, Union, Dict, List
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -51,13 +51,13 @@ class BaseAPIClient:
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
 
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs):
         response_obj = await self._send_request(method=method, endpoint=endpoint, raise_for_status=raise_for_status, **kwargs)
         if response_obj.is_pagination:
             return await self.continue_request_pagination(response_obj, method=method, endpoint=endpoint, **kwargs)
         return response_obj
 
-    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
+    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, url=endpoint)
         if self.is_failed:
