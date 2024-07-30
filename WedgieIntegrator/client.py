@@ -118,7 +118,7 @@ class BaseAPIClient:
             if response_obj.is_rate_limit_error is True:
                 raise RateLimitError("Rate limit error", request=request, response=response)
             if response_obj.is_temporary_rate_limit_error is True:
-                raise RateLimitError("Temporary rate limit error", request=request, response=response)
+                raise TemporaryRateLimitError("Temporary rate limit error", request=request, response=response)
             if raise_for_status:
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
