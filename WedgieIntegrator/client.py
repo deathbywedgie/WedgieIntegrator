@@ -20,7 +20,7 @@ log = structlog.wrap_logger(_logger)
 class BaseAPIClient:
     """Base class for API client"""
     VERBOSE: bool = False
-    is_failed: bool = True
+    is_failed: bool = False
 
     def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_class: APIResponse = None, response_model: Optional[Type[BaseModel]] = None, verbose=False):
         if verbose is not None:
