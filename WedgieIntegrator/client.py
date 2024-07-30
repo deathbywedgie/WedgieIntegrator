@@ -92,11 +92,17 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
-    def continue_request_pagination(self, response: httpx.Response):
+    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, raise_for_status=True, **kwargs):
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
 
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
+        response_obj = await self._send_request(method=method, endpoint=endpoint, raise_for_status=raise_for_status, **kwargs)
+        if response_obj.is_pagination:
+            return self.continue_request_pagination(response_obj, method=method, endpoint=endpoint, **kwargs)
+        return response_obj
+
+    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Any]:
         """Send an HTTP request with retries and authentication"""
         __logger = log.new(method=method, endpoint=endpoint)
         __logger.debug("Sending request", params=kwargs)
@@ -121,13 +127,10 @@ class BaseAPIClient:
         except RetryError as e:
             __logger.error("Retry failed", error=str(e))
             raise
-        try:
-            if response_obj.is_pagination:
-                return self.continue_request_pagination(response)
-            return response_obj
         except ValidationError as e:
             log.error("Response validation failed", error=str(e), method=method, endpoint=endpoint)
             raise
+        return response_obj
 
     async def get(self, endpoint: str, **kwargs) -> Union[dict, Any, httpx.Response]:
         """Send a GET request"""
@@ -143,6 +146,6 @@ class APIClient(BaseAPIClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def continue_request_pagination(self, response: httpx.Response):
+    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, raise_for_status=True, **kwargs):
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
