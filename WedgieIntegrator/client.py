@@ -72,7 +72,7 @@ class BaseAPIClient:
         try:
             response = await self.client.send(request)
             self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
-            response_obj = self.response_class(api_client=self, response=response)
+            response_obj = self.response_class(api_client=self, response=response, response_model=self.response_model)
             if response_obj.is_rate_limit_error is True:
                 raise RateLimitError("Rate limit error", request=request, response=response)
             if response_obj.is_rate_limit_failure is True:
