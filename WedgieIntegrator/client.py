@@ -92,7 +92,7 @@ class BaseAPIClient:
         if self.VERBOSE:
             logger.debug(msg, **kwargs)
 
-    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, raise_for_status=True, **kwargs):
+    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
 
@@ -146,6 +146,6 @@ class APIClient(BaseAPIClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, raise_for_status=True, **kwargs):
+    def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
         """Parse pagination details and continue requests until all results are returned"""
         raise NotImplementedError("No default pagination method currently implemented")
