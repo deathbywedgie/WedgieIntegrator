@@ -18,7 +18,6 @@ log = structlog.wrap_logger(_logger)
 
 class APIClient:
     """Base class for API client"""
-    VERBOSE: bool = False
     is_failed: bool = False
 
     base_url: str
@@ -27,11 +26,13 @@ class APIClient:
     timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
     verify_ssl: bool = True
     requests_per_minute: int = None
+    verbose: bool = False
 
     auth_strategy: AuthStrategy
 
     def __init__(self,
                  base_url: str,
+                 *,  # Force key-value pairs for input
                  auth_strategy: AuthStrategy = None,
                  response_class: APIResponse = None,
                  response_model: Optional[Type[BaseModel]] = None,
@@ -42,7 +43,7 @@ class APIClient:
         self.base_url = base_url
         self.timeout = timeout
         self.verify_ssl = verify_ssl
-        self.VERBOSE = verbose
+        self.verbose = verbose
         self.auth_strategy = auth_strategy or NoAuth()
         self.response_class = response_class or APIResponse
         self.response_model = response_model
@@ -60,7 +61,7 @@ class APIClient:
     def log_verbose(self, msg, logger=None, **kwargs):
         if not logger:
             logger = log
-        if self.VERBOSE:
+        if self.verbose:
             logger.debug(msg, **kwargs)
 
     async def create_response_object(self, response: httpx.Response):
