@@ -25,24 +25,29 @@ class APIClient:
     # retry_attempts: int = 3
     timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
     verify_ssl: bool = True
+    # ToDo Future use
     requests_per_minute: int = None
     verbose: bool = False
 
-    auth_strategy: AuthStrategy
+    auth_strategy: Optional[AuthStrategy] = None
+    response_class: Optional[Type[APIResponse]] = None
+    response_model: Optional[Type[BaseModel]] = None
 
     def __init__(self,
                  base_url: str,
                  *,  # Force key-value pairs for input
-                 auth_strategy: AuthStrategy = None,
-                 response_class: APIResponse = None,
+                 auth_strategy: Optional[AuthStrategy] = None,
+                 response_class: Optional[Type[APIResponse]] = None,
                  response_model: Optional[Type[BaseModel]] = None,
                  timeout: float = 10.0,
                  verify_ssl: bool = True,
+                 requests_per_minute: int = None,
                  verbose: bool = False,
                  ):
         self.base_url = base_url
         self.timeout = timeout
         self.verify_ssl = verify_ssl
+        self.requests_per_minute = requests_per_minute
         self.verbose = verbose
         self.auth_strategy = auth_strategy or NoAuth()
         self.response_class = response_class or APIResponse
