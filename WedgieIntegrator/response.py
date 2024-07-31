@@ -26,6 +26,12 @@ class BaseAPIResponse:
     def content(self):
         return self.__content
 
+    @property
+    def result_list(self):
+        """Customizable property for returning results as a list, when applicable"""
+        if isinstance(self.content, list):
+            return self.content
+
     async def is_json(self):
         """Standalone parser to make customization easy"""
         if 'application/json' in self.content_type:
