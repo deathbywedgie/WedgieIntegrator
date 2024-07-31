@@ -63,8 +63,9 @@ class BaseAPIClient:
             _ = await getattr(response_obj, "_async_pre_parsing")()
         return response_obj
 
-    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
+    async def _send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
+        _ = result_limit  # Used only by pagination
         __logger = log.new(method=method, url=endpoint)
         if self.is_failed:
             __logger.fatal("Failure reported; aborting tasks")
