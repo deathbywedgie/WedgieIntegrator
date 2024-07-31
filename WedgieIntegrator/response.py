@@ -43,7 +43,7 @@ class BaseAPIResponse:
             if self.response_model:
                 parsed_response = await asyncio.to_thread(self.response.json)
                 self.__content = self.response_model.parse_obj(parsed_response)
-            elif self.is_json():
+            elif await self.is_json():
                 self.__content = await asyncio.to_thread(self.response.json)
             elif 'text/' in self.content_type:
                 self.__content = self.response.text
