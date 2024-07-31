@@ -38,18 +38,16 @@ class BaseAPIResponse:
             return True
         return False
 
-    async def _async_pre_parsing(self):
-        if self.__content is None:
-            if self.response_model:
-                parsed_response = await asyncio.to_thread(self.response.json)
-                self.__content = self.response_model.parse_obj(parsed_response)
-            elif await self.is_json():
-                self.__content = await asyncio.to_thread(self.response.json)
-            elif 'text/' in self.content_type:
-                self.__content = self.response.text
-            else:
-                self.__content = self.response.content
-        return self.__content
+    async def _async_parse_content(self):
+        if self.response_model:
+            parsed_response = await asyncio.to_thread(self.response.json)
+            self.__content = self.response_model.parse_obj(parsed_response)
+        elif await self.is_json():
+            self.__content = await asyncio.to_thread(self.response.json)
+        elif 'text/' in self.content_type:
+            self.__content = self.response.text
+        else:
+            self.__content = self.response.content
 
 
 class APIResponse(BaseAPIResponse):

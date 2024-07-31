@@ -1,11 +1,9 @@
 from typing import Optional, Any, Type, Union, Dict, List
-
 import httpx
 from pydantic import BaseModel, ValidationError
 from tenacity import RetryError
 
-from .auth import AuthStrategy
-from .config import APIConfig
+from .auth import AuthStrategy, NoAuth
 from .exceptions import *
 from .response import APIResponse
 
@@ -47,23 +45,40 @@ def paginate_requests(func):
     return wrapper
 
 
-class BaseAPIClient:
+class APIClient:
     """Base class for API client"""
     VERBOSE: bool = False
     is_failed: bool = False
 
-    def __init__(self, config: APIConfig, auth_strategy: AuthStrategy, response_class: APIResponse = None, response_model: Optional[Type[BaseModel]] = None, verbose=False):
-        if verbose is not None:
-            self.VERBOSE = verbose
-        self.config = config
-        self.auth_strategy = auth_strategy
+    base_url: str
+    # ToDo Revisit this, and probably need to separate out retry types (connection, server errors, rate limits, etc.)
+    # retry_attempts: int = 3
+    timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
+    verify_ssl: bool = True
+    requests_per_minute: int = None
+
+    auth_strategy: AuthStrategy
+
+    def __init__(self,
+                 base_url: str,
+                 auth_strategy: AuthStrategy = None,
+                 response_class: APIResponse = None,
+                 response_model: Optional[Type[BaseModel]] = None,
+                 timeout: float = 10.0,
+                 verify_ssl: bool = True,
+                 verbose: bool = False,
+                 ):
+        self.base_url = base_url
+        self.timeout = timeout
+        self.verify_ssl = verify_ssl
+        self.VERBOSE = verbose
+        self.auth_strategy = auth_strategy or NoAuth()
         self.response_class = response_class or APIResponse
         self.response_model = response_model
         # Initialize client here
-        self.client = httpx.AsyncClient(
-            base_url=self.config.base_url, timeout=self.config.timeout, verify=self.config.verify_ssl)
+        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
 
-    async def __aenter__(self) -> 'BaseAPIClient':
+    async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
         return self
 
@@ -79,8 +94,8 @@ class BaseAPIClient:
 
     async def create_response_object(self, response: httpx.Response):
         response_obj = self.response_class(api_client=self, response=response, response_model=self.response_model)
-        if response_obj.content is None and hasattr(response_obj, "_async_pre_parsing"):
-            _ = await getattr(response_obj, "_async_pre_parsing")()
+        if response_obj.content is None:
+            await response_obj._async_parse_content()
         return response_obj
 
     @paginate_requests
@@ -125,13 +140,3 @@ class BaseAPIClient:
     async def post(self, endpoint: str, **kwargs):
         """Send a POST request"""
         return await self.send_request(method="POST", endpoint=endpoint, **kwargs)
-
-
-class APIClient(BaseAPIClient):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    async def continue_request_pagination(self, response_obj: APIResponse, method: str, endpoint: str, **kwargs):
-        """Parse pagination details and continue requests until all results are returned"""
-        raise NotImplementedError("No default pagination method currently implemented")
