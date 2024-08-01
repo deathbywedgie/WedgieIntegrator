@@ -1,8 +1,11 @@
-import asyncio
 from typing import Optional, Any, Type, Union
 
 import httpx
 from pydantic import BaseModel
+try:
+    from asyncio import to_thread
+except ImportError:
+    from _asyncio import to_thread
 
 
 class BaseAPIResponse:
@@ -40,10 +43,10 @@ class BaseAPIResponse:
 
     async def _async_parse_content(self):
         if self.response_model:
-            parsed_response = await asyncio.to_thread(self.response.json)
+            parsed_response = await to_thread(self.response.json)
             self.__content = self.response_model.parse_obj(parsed_response)
         elif await self.is_json():
-            self.__content = await asyncio.to_thread(self.response.json)
+            self.__content = await to_thread(self.response.json)
         elif 'text/' in self.content_type:
             self.__content = self.response.text
         else:
