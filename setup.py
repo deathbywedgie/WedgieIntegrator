@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="WedgieIntegrator",
-    version="0.1.2.5",
+    version="0.1.2.6",
     author="Chad Roberts",
     author_email="jcbroberts@gmail.com",
     description="An API client toolkit that is async friendly",
@@ -15,7 +15,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.7',
     install_requires=[
         "httpx",
         "pydantic",
