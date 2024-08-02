@@ -3,6 +3,9 @@ import httpx
 from pydantic import BaseModel, ValidationError
 from tenacity import RetryError
 from aiolimiter import AsyncLimiter
+from collections import deque
+import time
+import threading
 
 from .auth import AuthStrategy, NoAuth
 from .exceptions import RateLimitError, RateLimitFailure, TaskAborted
@@ -34,6 +37,10 @@ class APIClient:
     response_class: Optional[Type[APIResponse]] = None
     response_model: Optional[Type[BaseModel]] = None
     limiter: Optional[AsyncLimiter] = None
+    _request_timestamps: deque = deque()
+    _max_requests_per_second: int = 0
+    _shutdown: bool = False
+    _worker_thread: threading.Thread = None
 
     def __init__(self,
                  base_url: str,
@@ -65,6 +72,19 @@ class APIClient:
         elif self.requests_per_second:
             self.limiter = AsyncLimiter(self.requests_per_second, time_period=1)
 
+        # Start the worker thread
+        self._worker_thread = threading.Thread(target=self._worker, daemon=True)
+        self._worker_thread.start()
+
+    def _worker(self):
+        """Worker thread for operational tasks."""
+        while not self._shutdown:
+            time.sleep(1)
+            current_time = time.time()
+            count = sum(1 for t in self._request_timestamps if t > current_time - 1)
+            if count > 0:
+                log.info(f"Requests in the last second: {count}")
+
     async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
         return self
@@ -72,6 +92,8 @@ class APIClient:
     async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[Any]):
         if self.client:
             await self.client.aclose()
+        self._shutdown = True
+        self._worker_thread.join()
 
     def log_verbose(self, msg, logger=None, **kwargs):
         if not logger:
@@ -94,9 +116,9 @@ class APIClient:
     async def _handle_response(self, response: httpx.Response, request: httpx.Request) -> APIResponse:
         """Process the response and handle errors."""
         response_obj = await self.create_response_object(response=response)
-        if response_obj.is_rate_limit_error is True:
+        if response_obj.is_rate_limit_error:
             raise RateLimitError("Rate limit error", request=request, response=response)
-        if response_obj.is_rate_limit_failure is True:
+        if response_obj.is_rate_limit_failure:
             raise RateLimitFailure("Rate limit failure", request=request, response=response)
         return response_obj
 
@@ -118,6 +140,18 @@ class APIClient:
                     response = await self._perform_request(method, endpoint, **kwargs)
             else:
                 response = await self._perform_request(method, endpoint, **kwargs)
+
+            # Log the request time
+            current_time = time.time()
+            self._request_timestamps.append(current_time)
+            # Remove timestamps older than 1 second
+            while self._request_timestamps and self._request_timestamps[0] < current_time - 1:
+                self._request_timestamps.popleft()
+            # Update the max requests per second
+            current_rate = len(self._request_timestamps)
+            if current_rate > self._max_requests_per_second:
+                self._max_requests_per_second = current_rate
+
             self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
             response_obj = await self._handle_response(response, response.request)
             if raise_for_status:
@@ -132,6 +166,11 @@ class APIClient:
             log.error("Response validation failed", error=str(e), method=method, url=endpoint)
             raise
         return response_obj
+
+    @property
+    def max_requests_per_second(self) -> int:
+        """Returns the highest rate of requests per second reached."""
+        return self._max_requests_per_second
 
     async def get(self, endpoint: str, **kwargs):
         """Send a GET request"""
