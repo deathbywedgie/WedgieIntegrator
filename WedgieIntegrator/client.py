@@ -83,7 +83,7 @@ class APIClient:
             current_time = time.time()
             count = sum(1 for t in self._request_timestamps if t > current_time - 1)
             if count > 0:
-                log.info(f"Requests in the last second: {count}")
+                log.info(f"Requests in the last second: {count}, Max seen per second: {self._max_requests_per_second}")
 
     async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
