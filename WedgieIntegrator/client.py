@@ -6,6 +6,7 @@ from aiolimiter import AsyncLimiter
 from collections import deque
 import time
 import threading
+from uuid import uuid4
 
 from .auth import AuthStrategy, NoAuth
 from .exceptions import RateLimitError, RateLimitFailure, TaskAborted
@@ -41,6 +42,7 @@ class APIClient:
     _max_requests_per_second: int = 0
     _shutdown: bool = False
     _worker_thread: threading.Thread = None
+    _instance_id: str = None
 
     def __init__(self,
                  base_url: str,
@@ -66,6 +68,9 @@ class APIClient:
         # Initialize client here
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
 
+        # Generate a unique identifier for this instance
+        self._instance_id = f"{uuid4()}_{int(time.time())}"
+        self._log = log.new(prefix=f"[{self._instance_id}] ")
         # Initialize rate limiter
         if self.requests_per_minute:
             self.limiter = AsyncLimiter(self.requests_per_minute, time_period=60)
@@ -83,7 +88,7 @@ class APIClient:
             current_time = time.time()
             count = sum(1 for t in self._request_timestamps if t > current_time - 1)
             if count > 0:
-                log.info(f"Requests in the last second: {count}, Max seen per second: {self._max_requests_per_second}")
+                self._log.info(f"Requests in the last second: {count}, Max seen per second: {self._max_requests_per_second}")
 
     async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
@@ -97,7 +102,7 @@ class APIClient:
 
     def log_verbose(self, msg, logger=None, **kwargs):
         if not logger:
-            logger = log
+            logger = self._log
         if self.verbose:
             logger.debug(msg, **kwargs)
 
@@ -126,7 +131,7 @@ class APIClient:
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
         _ = result_limit  # Used only by pagination
-        __logger = log.new(method=method, url=endpoint)
+        __logger = self._log.new(method=method, url=endpoint)
         if self.is_failed:
             __logger.fatal("Failure reported; aborting tasks")
             raise TaskAborted("Failure reported; aborting tasks")
@@ -163,7 +168,7 @@ class APIClient:
             __logger.error("Retry failed", error=str(e))
             raise
         except ValidationError as e:
-            log.error("Response validation failed", error=str(e), method=method, url=endpoint)
+            self._log.error("Response validation failed", error=str(e), method=method, url=endpoint)
             raise
         return response_obj
 
