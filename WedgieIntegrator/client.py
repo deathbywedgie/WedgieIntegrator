@@ -34,7 +34,8 @@ class APIClient:
     auth_strategy: Optional[AuthStrategy] = None
     response_class: Optional[Type[APIResponse]] = None
     response_model: Optional[Type[BaseModel]] = None
-    limiter: Optional[AsyncLimiter] = None
+    limiter_per_second: Optional[AsyncLimiter] = None
+    limiter_per_minute: Optional[AsyncLimiter] = None
     _request_timestamps: deque = deque()
     _max_requests_per_second: int = 0
 
@@ -70,11 +71,11 @@ class APIClient:
         # Initialize client here
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
 
-        # Initialize rate limiter
+        # Initialize rate limiters
+        if self.requests_per_second:
+            self.limiter_per_second = AsyncLimiter(self.requests_per_second, time_period=1)
         if self.requests_per_minute:
-            self.limiter = AsyncLimiter(self.requests_per_minute, time_period=60)
-        elif self.requests_per_second:
-            self.limiter = AsyncLimiter(self.requests_per_second, time_period=1)
+            self.limiter_per_minute = AsyncLimiter(self.requests_per_minute, time_period=60)
 
     async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
@@ -126,8 +127,15 @@ class APIClient:
         retries = 0
         while retries <= self.max_retries:
             try:
-                if self.limiter:
-                    async with self.limiter:
+                # Apply both rate limiters
+                if self.limiter_per_second and self.limiter_per_minute:
+                    async with self.limiter_per_second, self.limiter_per_minute:
+                        response = await self._perform_request(method, endpoint, **kwargs)
+                elif self.limiter_per_second:
+                    async with self.limiter_per_second:
+                        response = await self._perform_request(method, endpoint, **kwargs)
+                elif self.limiter_per_minute:
+                    async with self.limiter_per_minute:
                         response = await self._perform_request(method, endpoint, **kwargs)
                 else:
                     response = await self._perform_request(method, endpoint, **kwargs)
