@@ -3,6 +3,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 from tenacity import RetryError
 from aiolimiter import AsyncLimiter
+import asyncio
 from collections import deque
 import time
 import threading
@@ -26,8 +27,6 @@ class APIClient:
     is_failed: bool = False
 
     base_url: str
-    # ToDo Revisit this, and probably need to separate out retry types (connection, server errors, rate limits, etc.)
-    # retry_attempts: int = 3
     timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
     verify_ssl: bool = True
     requests_per_second: int = None
@@ -44,6 +43,10 @@ class APIClient:
     _worker_thread: threading.Thread = None
     _instance_id: str = None
 
+    # New attributes for retry configuration
+    max_retries: int = 0  # Default to no retries
+    max_retry_wait: float = 5.0  # Maximum wait time between retries in seconds
+
     def __init__(self,
                  base_url: str,
                  *,  # Force key-value pairs for input
@@ -55,6 +58,8 @@ class APIClient:
                  requests_per_minute: int = None,
                  requests_per_second: int = None,
                  verbose: bool = False,
+                 max_retries: int = 0,
+                 max_retry_wait: float = 5.0,
                  ):
         self.base_url = base_url
         self.timeout = timeout
@@ -65,12 +70,15 @@ class APIClient:
         self.auth_strategy = auth_strategy or NoAuth()
         self.response_class = response_class or APIResponse
         self.response_model = response_model
+        self.max_retries = max_retries
+        self.max_retry_wait = max_retry_wait
         # Initialize client here
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
 
         # Generate a unique identifier for this instance
         self._instance_id = f"{uuid4()}_{int(time.time())}"
         self._log = log.new(prefix=f"[{self._instance_id}] ")
+
         # Initialize rate limiter
         if self.requests_per_minute:
             self.limiter = AsyncLimiter(self.requests_per_minute, time_period=60)
@@ -139,38 +147,49 @@ class APIClient:
         if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
 
-        try:
-            if self.limiter:
-                async with self.limiter:
+        retries = 0
+        while retries <= self.max_retries:
+            try:
+                if self.limiter:
+                    async with self.limiter:
+                        response = await self._perform_request(method, endpoint, **kwargs)
+                else:
                     response = await self._perform_request(method, endpoint, **kwargs)
-            else:
-                response = await self._perform_request(method, endpoint, **kwargs)
 
-            # Log the request time
-            current_time = time.time()
-            self._request_timestamps.append(current_time)
-            # Remove timestamps older than 1 second
-            while self._request_timestamps and self._request_timestamps[0] < current_time - 1:
-                self._request_timestamps.popleft()
-            # Update the max requests per second
-            current_rate = len(self._request_timestamps)
-            if current_rate > self._max_requests_per_second:
-                self._max_requests_per_second = current_rate
+                # Log the request time
+                current_time = time.time()
+                self._request_timestamps.append(current_time)
+                # Remove timestamps older than 1 second
+                while self._request_timestamps and self._request_timestamps[0] < current_time - 1:
+                    self._request_timestamps.popleft()
+                # Update the max requests per second
+                current_rate = len(self._request_timestamps)
+                if current_rate > self._max_requests_per_second:
+                    self._max_requests_per_second = current_rate
 
-            self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
-            response_obj = await self._handle_response(response, response.request)
-            if raise_for_status:
-                response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            __logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
-            raise
-        except RetryError as e:
-            __logger.error("Retry failed", error=str(e))
-            raise
-        except ValidationError as e:
-            self._log.error("Response validation failed", error=str(e), method=method, url=endpoint)
-            raise
-        return response_obj
+                self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
+                response_obj = await self._handle_response(response, response.request)
+                if raise_for_status:
+                    response.raise_for_status()
+                return response_obj
+            except httpx.ConnectError as e:  # Retry only on connection errors
+                retries += 1
+                __logger.warning(f"Connection error occurred: {e}. Retry {retries}/{self.max_retries}.")
+                if retries > self.max_retries:
+                    __logger.error(f"Exceeded maximum retries. Raising exception.")
+                    raise
+                # Exponential backoff with a max wait time
+                retry_wait = min(2 ** retries, self.max_retry_wait)
+                await asyncio.sleep(retry_wait)
+            except httpx.HTTPStatusError as e:
+                __logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
+                raise
+            except RetryError as e:
+                __logger.error("Retry failed", error=str(e))
+                raise
+            except ValidationError as e:
+                self._log.error("Response validation failed", error=str(e), method=method, url=endpoint)
+                raise
 
     @property
     def max_requests_per_second(self) -> int:
