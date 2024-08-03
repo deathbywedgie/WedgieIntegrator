@@ -6,8 +6,6 @@ from aiolimiter import AsyncLimiter
 import asyncio
 from collections import deque
 import time
-import threading
-from uuid import uuid4
 
 from .auth import AuthStrategy, NoAuth
 from .exceptions import RateLimitError, RateLimitFailure, TaskAborted
@@ -39,9 +37,6 @@ class APIClient:
     limiter: Optional[AsyncLimiter] = None
     _request_timestamps: deque = deque()
     _max_requests_per_second: int = 0
-    _shutdown: bool = False
-    _worker_thread: threading.Thread = None
-    _instance_id: str = None
 
     # New attributes for retry configuration
     max_retries: int = 0  # Default to no retries
@@ -75,28 +70,11 @@ class APIClient:
         # Initialize client here
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
 
-        # Generate a unique identifier for this instance
-        self._instance_id = f"{uuid4()}_{int(time.time())}"
-        self._log = log.new(prefix=f"[{self._instance_id}] ")
-
         # Initialize rate limiter
         if self.requests_per_minute:
             self.limiter = AsyncLimiter(self.requests_per_minute, time_period=60)
         elif self.requests_per_second:
             self.limiter = AsyncLimiter(self.requests_per_second, time_period=1)
-
-        # Start the worker thread
-        self._worker_thread = threading.Thread(target=self._worker, daemon=True)
-        self._worker_thread.start()
-
-    def _worker(self):
-        """Worker thread for operational tasks."""
-        while not self._shutdown:
-            time.sleep(1)
-            current_time = time.time()
-            count = sum(1 for t in self._request_timestamps if t > current_time - 1)
-            if count > 0:
-                self._log.info(f"Requests in the last second: {count}, Max seen per second: {self._max_requests_per_second}")
 
     async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
@@ -105,12 +83,10 @@ class APIClient:
     async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[Any]):
         if self.client:
             await self.client.aclose()
-        self._shutdown = True
-        self._worker_thread.join()
 
     def log_verbose(self, msg, logger=None, **kwargs):
         if not logger:
-            logger = self._log
+            logger = log
         if self.verbose:
             logger.debug(msg, **kwargs)
 
@@ -139,7 +115,7 @@ class APIClient:
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
         _ = result_limit  # Used only by pagination
-        __logger = self._log.new(method=method, url=endpoint)
+        __logger = log.new(method=method, url=endpoint)
         if self.is_failed:
             __logger.fatal("Failure reported; aborting tasks")
             raise TaskAborted("Failure reported; aborting tasks")
@@ -172,7 +148,7 @@ class APIClient:
                 if raise_for_status:
                     response.raise_for_status()
                 return response_obj
-            except httpx.ConnectError as e:  # Retry only on connection errors
+            except httpx.ConnectError as e:  # Retry only on connection errors for now
                 retries += 1
                 __logger.warning(f"Connection error occurred: {e}. Retry {retries}/{self.max_retries}.")
                 if retries > self.max_retries:
@@ -188,7 +164,7 @@ class APIClient:
                 __logger.error("Retry failed", error=str(e))
                 raise
             except ValidationError as e:
-                self._log.error("Response validation failed", error=str(e), method=method, url=endpoint)
+                log.error("Response validation failed", error=str(e), method=method, url=endpoint)
                 raise
 
     @property
