@@ -3,11 +3,12 @@ WedgieIntegrator is an async friendly package for Python which acts as API clien
 
 ## Features
 
+- Fully asynchronous
 - Simple configuration
 - Multiple authentication strategies
 - Retry mechanisms
-- Asynchronous support
-- Detailed logging
+- Pagination
+- Helpful logging
 
 ## Installation
 

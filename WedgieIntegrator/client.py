@@ -37,7 +37,9 @@ class APIClient:
     limiter_per_second: Optional[AsyncLimiter] = None
     limiter_per_minute: Optional[AsyncLimiter] = None
     _request_timestamps: deque = deque()
-    _max_requests_per_second: int = 0
+    __max_requests_per_second: int = 0
+    __total_requests: int = 0
+    __total_retried_requests: int = 0
 
     # New attributes for retry configuration
     max_retries: int = 0  # Default to no retries
@@ -85,6 +87,20 @@ class APIClient:
         if self.client:
             await self.client.aclose()
 
+    @property
+    def max_requests_per_second(self) -> int:
+        """Returns the highest rate of requests per second reached."""
+        return self.__max_requests_per_second
+
+    @property
+    def total_requests(self) -> int:
+        """Returns the highest rate of requests per second reached."""
+        return self.__total_requests
+
+    @property
+    def total_retried_requests(self):
+        return self.__total_retried_requests
+
     def log_verbose(self, msg, logger=None, **kwargs):
         if not logger:
             logger = log
@@ -124,6 +140,7 @@ class APIClient:
         if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
 
+        self.__total_requests += 1
         retries = 0
         while retries <= self.max_retries:
             try:
@@ -148,37 +165,34 @@ class APIClient:
                     self._request_timestamps.popleft()
                 # Update the max requests per second
                 current_rate = len(self._request_timestamps)
-                if current_rate > self._max_requests_per_second:
-                    self._max_requests_per_second = current_rate
+                if current_rate > self.__max_requests_per_second:
+                    self.__max_requests_per_second = current_rate
 
                 self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
                 response_obj = await self._handle_response(response, response.request)
                 if raise_for_status:
                     response.raise_for_status()
                 return response_obj
-            except httpx.ConnectError as e:  # Retry only on connection errors for now
+            except httpx.TransportError as e:  # Retry only on connection errors for now
                 retries += 1
-                __logger.warning(f"Connection error occurred: {e}. Retry {retries}/{self.max_retries}.")
                 if retries > self.max_retries:
-                    __logger.error(f"Exceeded maximum retries. Raising exception.")
+                    if self.max_retries > 0:
+                        __logger.error(f"Exceeded maximum retries ({self.max_retries})")
                     raise
+                self.__total_retried_requests += 1
+                __logger.warning(f"Connection error occurred: {e}. Retry {retries}/{self.max_retries}.")
                 # Exponential backoff with a max wait time
                 retry_wait = min(2 ** retries, self.max_retry_wait)
                 await asyncio.sleep(retry_wait)
             except httpx.HTTPStatusError as e:
-                __logger.error("HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
+                __logger.debug("[ERROR] HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
                 raise
             except RetryError as e:
-                __logger.error("Retry failed", error=str(e))
+                __logger.debug("[ERROR] Retry failed", error=str(e))
                 raise
             except ValidationError as e:
-                log.error("Response validation failed", error=str(e), method=method, url=endpoint)
+                __logger.debug("[ERROR] Response validation failed", error=str(e), method=method, url=endpoint)
                 raise
-
-    @property
-    def max_requests_per_second(self) -> int:
-        """Returns the highest rate of requests per second reached."""
-        return self._max_requests_per_second
 
     async def get(self, endpoint: str, **kwargs):
         """Send a GET request"""
