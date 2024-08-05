@@ -68,10 +68,11 @@ class APIResponse(BaseAPIResponse):
 
         self.link_header = self.response.headers.get('Link')
         if self.link_header:
-            self.is_pagination = True
             self.pagination_links = {}
             for link in self.link_header.split(','):
                 parts = link.split(';')
                 url = parts[0].strip('<> ')
                 rel = parts[1].strip().split('=')[1].strip('"')
                 self.pagination_links[rel] = url
+            if self.response.request.method == "GET":
+                self.is_pagination = True
