@@ -9,7 +9,7 @@ import time
 
 from .auth import AuthStrategy, NoAuth
 from .exceptions import RateLimitError, RateLimitFailure, TaskAborted
-from .response import APIResponse
+from .response import BaseAPIResponse
 from .utils import paginate_requests
 
 import logging
@@ -32,7 +32,7 @@ class APIClient:
     verbose: bool = False
 
     auth_strategy: Optional[AuthStrategy] = None
-    response_class: Optional[Type[APIResponse]] = None
+    response_class: Optional[Type[BaseAPIResponse]] = None
     response_model: Optional[Type[BaseModel]] = None
     limiter_per_second: Optional[AsyncLimiter] = None
     limiter_per_minute: Optional[AsyncLimiter] = None
@@ -49,7 +49,7 @@ class APIClient:
                  base_url: str,
                  *,  # Force key-value pairs for input
                  auth_strategy: Optional[AuthStrategy] = None,
-                 response_class: Optional[Type[APIResponse]] = None,
+                 response_class: Optional[Type[BaseAPIResponse]] = None,
                  response_model: Optional[Type[BaseModel]] = None,
                  timeout: float = 10.0,
                  verify_ssl: bool = True,
@@ -66,7 +66,7 @@ class APIClient:
         self.requests_per_second = requests_per_second
         self.verbose = verbose
         self.auth_strategy = auth_strategy or NoAuth()
-        self.response_class = response_class or APIResponse
+        self.response_class = response_class or BaseAPIResponse
         self.response_model = response_model
         self.max_retries = max_retries
         self.max_retry_wait = max_retry_wait
@@ -119,7 +119,7 @@ class APIClient:
         self.auth_strategy.authenticate(request)
         return await self.client.send(request)
 
-    async def _handle_response(self, response: httpx.Response, request: httpx.Request) -> APIResponse:
+    async def _handle_response(self, response: httpx.Response, request: httpx.Request) -> BaseAPIResponse:
         """Process the response and handle errors."""
         response_obj = await self.create_response_object(response=response)
         if response_obj.is_rate_limit_error:
@@ -129,7 +129,7 @@ class APIClient:
         return response_obj
 
     @paginate_requests
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, **kwargs) -> Union[httpx.Response, APIResponse, Dict, List, Any]:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, **kwargs) -> Union[httpx.Response, BaseAPIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
         _ = result_limit  # Used only by pagination
         __logger = log.new(method=method, url=endpoint)
