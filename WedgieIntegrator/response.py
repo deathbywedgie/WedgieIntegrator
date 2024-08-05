@@ -18,12 +18,13 @@ class BaseAPIResponse:
     link_header: str = None
     pagination_links: dict = None
     __content = None
+    __client = None
 
     def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
+        self.__client = api_client
         self.response = response
         self.response_model = response_model
         self.content_type = response.headers.get('Content-Type', '')
-        self.__client = api_client
 
     @property
     def content(self) -> Union[dict, list, Any]:
