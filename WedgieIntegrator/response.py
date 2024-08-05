@@ -15,7 +15,9 @@ class BaseAPIResponse:
     is_rate_limit_error: bool = False
     is_rate_limit_failure: bool = False
     is_pagination: bool = False
+    link_header: str = None
     pagination_links: dict = None
+    pagination_next_link: str = None
     __content = None
 
     def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
@@ -26,6 +28,7 @@ class BaseAPIResponse:
 
     @property
     def content(self) -> Union[dict, list, Any]:
+        # Remember that this is not accessible until after initialization, because _async_parse_content has to run first
         return self.__content
 
     @property
@@ -68,3 +71,8 @@ class APIResponse(BaseAPIResponse):
                 url = parts[0].strip('<> ')
                 rel = parts[1].strip().split('=')[1].strip('"')
                 self.pagination_links[rel] = url
+
+    @property
+    def pagination_next_link(self):
+        if self.pagination_links:
+            return self.pagination_links.get('next')
