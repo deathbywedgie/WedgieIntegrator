@@ -28,10 +28,8 @@ def paginate_requests(func):
             return response_obj
         log.debug("Pagination detected", url=str(response_obj.response.url))
         result_limit = kwargs.pop("result_limit", 0)
-        all_results = []
-        if response_obj.result_list:
-            all_results.extend(response_obj.result_list)
         all_responses = [response_obj]
+        all_results = [r for r in response_obj.result_list or []]
         next_url = response_obj.pagination_next_link
         urls_fetched = []
         while next_url:
