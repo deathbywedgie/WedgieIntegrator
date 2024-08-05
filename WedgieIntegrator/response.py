@@ -11,7 +11,6 @@ except ImportError:
 class BaseAPIResponse:
     response: httpx.Response
     response_model: Optional[Type[BaseModel]] = None
-    content: Union[dict, Any]
     content_type: str
     is_rate_limit_error: bool = False
     is_rate_limit_failure: bool = False
@@ -26,7 +25,7 @@ class BaseAPIResponse:
         self.__client = api_client
 
     @property
-    def content(self):
+    def content(self) -> Union[dict, list, Any]:
         return self.__content
 
     @property
