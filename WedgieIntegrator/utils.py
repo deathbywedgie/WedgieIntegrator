@@ -37,10 +37,10 @@ def paginate_requests(func):
         while next_url:
             if next_url in urls_fetched:
                 raise Exception(f"Next URL is the same as one previously requested already. URL: {next_url}")
-            urls_fetched.append(next_url)
-            log.debug("Continuing pagination", url=next_url)
             if result_limit and len(all_results) >= result_limit:
                 break
+            urls_fetched.append(next_url)
+            log.debug("Continuing pagination", url=next_url)
             kwargs['endpoint'] = next_url
             next_response = await func(self, *args, **kwargs)
             all_responses.append(next_response)
