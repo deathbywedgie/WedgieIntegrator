@@ -47,6 +47,12 @@ class BaseAPIResponse:
         if self.pagination_links:
             return self.pagination_links.get('next')
 
+    async def get_pagination_payload(self):
+        request_args = {}
+        if self.pagination_next_link:
+            request_args['endpoint'] = self.pagination_next_link
+        return request_args
+
     async def _async_parse_content(self):
         if self.response_model:
             parsed_response = await to_thread(self.response.json)
