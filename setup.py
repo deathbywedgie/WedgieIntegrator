@@ -20,6 +20,7 @@ setup(
         "httpx",
         "pydantic",
         "tenacity",
-        "structlog"
+        "structlog",
+        "aiolimiter",
     ],
 )
