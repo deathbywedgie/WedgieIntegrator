@@ -107,8 +107,9 @@ class APIClient:
         if self.verbose:
             logger.debug(msg, **kwargs)
 
-    async def create_response_object(self, response: httpx.Response):
-        response_obj = self.response_class(api_client=self, response=response, response_model=self.response_model)
+    async def create_response_object(self, response: httpx.Response, response_class: Optional[Type[BaseAPIResponse]]):
+        response_class = response_class or self.response_class
+        response_obj = response_class(api_client=self, response=response, response_model=self.response_model)
         if response_obj.content is None:
             await response_obj._async_parse_content()
         return response_obj
@@ -119,9 +120,9 @@ class APIClient:
         self.auth_strategy.authenticate(request)
         return await self.client.send(request)
 
-    async def _handle_response(self, response: httpx.Response, request: httpx.Request) -> BaseAPIResponse:
+    async def _handle_response(self, response: httpx.Response, request: httpx.Request, response_class: Optional[Type[BaseAPIResponse]]) -> BaseAPIResponse:
         """Process the response and handle errors."""
-        response_obj = await self.create_response_object(response=response)
+        response_obj = await self.create_response_object(response=response, response_class=response_class)
         if response_obj.is_rate_limit_error:
             raise RateLimitError("Rate limit error", request=request, response=response)
         if response_obj.is_rate_limit_failure:
@@ -129,7 +130,7 @@ class APIClient:
         return response_obj
 
     @paginate_requests
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, **kwargs) -> Union[httpx.Response, BaseAPIResponse, Dict, List, Any]:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, response_class: Optional[Type[BaseAPIResponse]] = None, **kwargs) -> Union[httpx.Response, BaseAPIResponse, Dict, List, Any]:
         """Send an HTTP request with retries and authentication"""
         _ = result_limit  # Used only by pagination
         __logger = log.new(method=method, url=endpoint)
@@ -169,7 +170,7 @@ class APIClient:
                     self.__max_requests_per_second = current_rate
 
                 self.log_verbose("Received response", status_code=response.status_code, logger=__logger)
-                response_obj = await self._handle_response(response, response.request)
+                response_obj = await self._handle_response(response=response, request=response.request, response_class=response_class)
                 if raise_for_status:
                     response.raise_for_status()
                 return response_obj
