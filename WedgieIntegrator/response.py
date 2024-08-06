@@ -25,6 +25,8 @@ class BaseAPIResponse:
         self.response = response
         self.response_model = response_model
         self.content_type = response.headers.get('Content-Type', '')
+        if self.response.status_code == 429:
+            self.is_rate_limit_error = True
 
     @property
     def content(self) -> Union[dict, list, Any]:
@@ -70,9 +72,6 @@ class APIResponse(BaseAPIResponse):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.response.status_code == 429:
-            self.is_rate_limit_error = True
-
         self.link_header = self.response.headers.get('Link')
         if self.link_header:
             self.pagination_links = {}
