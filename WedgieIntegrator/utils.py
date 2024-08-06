@@ -30,21 +30,23 @@ def paginate_requests(func):
         result_limit = kwargs.pop("result_limit", 0)
         all_responses = [response_obj]
         all_results = [r for r in response_obj.result_list or []]
-        next_url = response_obj.pagination_next_link
         urls_fetched = []
-        while next_url:
-            if next_url in urls_fetched:
-                raise Exception(f"Next URL is the same as one previously requested already. URL: {next_url}")
+        pagination_payload = await response_obj.get_pagination_payload()
+        while pagination_payload:
             if result_limit and len(all_results) >= result_limit:
                 break
-            urls_fetched.append(next_url)
+            kwargs.update(pagination_payload)
+            next_url = kwargs.get("endpoint")
+            if next_url in urls_fetched:
+                raise Exception(f"Next URL is the same as one previously requested already. URL: {next_url}")
+            if response_obj.response.request.method == "GET":
+                urls_fetched.append(next_url)
             log.debug("Continuing pagination", url=next_url)
-            kwargs['endpoint'] = next_url
-            next_response = await func(self, *args, **kwargs)
-            all_responses.append(next_response)
-            if next_response.result_list:
-                all_results.extend(next_response.result_list)
-            next_url = next_response.pagination_next_link
+            response_obj = await func(self, *args, **kwargs)
+            all_responses.append(response_obj)
+            if response_obj.result_list:
+                all_results.extend(response_obj.result_list)
+            pagination_payload = await response_obj.get_pagination_payload()
 
         if result_limit:
             return all_responses, all_results[:result_limit]
