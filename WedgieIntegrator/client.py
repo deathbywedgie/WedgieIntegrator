@@ -52,12 +52,15 @@ class APIClient:
                  response_class: Optional[Type[BaseAPIResponse]] = None,
                  response_model: Optional[Type[BaseModel]] = None,
                  timeout: float = 10.0,
+                 default_params: dict = None,
+                 default_headers: dict = None,
                  verify_ssl: bool = True,
                  requests_per_minute: int = None,
                  requests_per_second: int = None,
                  verbose: bool = False,
                  max_retries: int = 0,
                  max_retry_wait: float = 5.0,
+                 httpx_kwargs: dict = None,
                  ):
         self.base_url = base_url
         self.timeout = timeout
@@ -71,7 +74,14 @@ class APIClient:
         self.max_retries = max_retries
         self.max_retry_wait = max_retry_wait
         # Initialize client here
-        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
+        client_params = dict(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
+        if default_params:
+            client_params['params'] = default_params
+        if default_headers:
+            client_params['params'] = default_headers
+        if httpx_kwargs:
+            client_params.update(httpx_kwargs)
+        self.client = httpx.AsyncClient(**client_params)
 
         # Initialize rate limiters
         if self.requests_per_second:
