@@ -76,9 +76,9 @@ class APIClient:
         # Initialize client here
         client_params = dict(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
         if default_params:
-            client_params['params'] = default_params
+            client_params["params"] = default_params
         if default_headers:
-            client_params['params'] = default_headers
+            client_params["headers"] = default_headers
         if httpx_kwargs:
             client_params.update(httpx_kwargs)
         self.client = httpx.AsyncClient(**client_params)
