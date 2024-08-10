@@ -6,6 +6,9 @@ class BaseClientException(Exception):
         super().__init__(*args, **kwargs)
 
 
+class ClientError(BaseClientException): ...
+
+
 class RateLimitError(HTTPStatusError, BaseClientException): ...
 
 
