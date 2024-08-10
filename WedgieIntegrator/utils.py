@@ -1,5 +1,7 @@
 from tenacity import retry, stop_after_attempt, wait_exponential
 from .response import APIResponse
+from httpx import QueryParams
+from .exceptions import ClientError
 
 import logging
 import structlog
@@ -26,29 +28,59 @@ def paginate_requests(func):
         response_obj: APIResponse = await func(self, *args, **kwargs)
         if not response_obj.is_pagination:
             return response_obj
-        log.debug("Pagination detected", url=str(response_obj.response.url))
-        result_limit = kwargs.pop("result_limit", 0)
-        all_responses = [response_obj]
+        result_limit = int(kwargs.get("result_limit") or 0)
         all_results = [r for r in response_obj.result_list or []]
-        urls_fetched = []
-        pagination_payload = await response_obj.get_pagination_payload()
-        while pagination_payload:
+        log.debug(
+            "Paginated call recognized",
+            url=str(response_obj.response.url),
+            result_limit=result_limit or None,
+            new_results=len(all_results),
+        )
+
+        all_responses = [response_obj]
+        response_class = kwargs.pop("response_class", None)
+
+        request_kwargs = QueryParams(kwargs)
+        previous_calls = [request_kwargs]
+        while True:
             if result_limit and len(all_results) >= result_limit:
                 break
-            kwargs.update(pagination_payload)
-            next_url = kwargs.get("endpoint")
-            if next_url in urls_fetched:
-                raise Exception(f"Next URL is the same as one previously requested already. URL: {next_url}")
-            if response_obj.response.request.method == "GET":
-                urls_fetched.append(next_url)
-            log.debug("Continuing pagination", url=next_url)
-            response_obj = await func(self, *args, **kwargs)
+            pagination_payload = await response_obj.get_pagination_payload()
+            if not pagination_payload:
+                break
+            request_kwargs = QueryParams(request_kwargs).merge(pagination_payload)
+            if request_kwargs in previous_calls:
+                log.fatal(
+                    "Pagination failure: next call is the same as a previous call",
+                    url=request_kwargs.get("endpoint"),
+                    call_count=len(all_responses),
+                    new_results=len(response_obj.result_list or []),
+                    current_total=len(all_results),
+                    result_limit=result_limit or None,
+                )
+                raise ClientError(f"Pagination failure: next call is the same as a previous call")
+            previous_calls.append(request_kwargs)
+
+            log.debug(
+                "Continuing pagination",
+                url=request_kwargs.get("endpoint"),
+                result_limit=result_limit or None,
+                current_result_count=len(all_results),
+                current_call_count=len(all_responses),
+            )
+            response_obj = await func(self, *args, response_class=response_class, **request_kwargs)
             all_responses.append(response_obj)
             if response_obj.result_list:
                 all_results.extend(response_obj.result_list)
-            pagination_payload = await response_obj.get_pagination_payload()
 
         if result_limit:
-            return all_responses, all_results[:result_limit]
+            all_results = all_results[:result_limit]
+        log.debug(
+            "Pagination complete",
+            url=request_kwargs.get("endpoint"),
+            call_count=len(all_responses),
+            result_count=len(all_results),
+            result_limit=result_limit or None,
+        )
         return all_responses, all_results
     return wrapper
