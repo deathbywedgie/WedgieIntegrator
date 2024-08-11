@@ -9,7 +9,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/deathbywedgie/WedgieIntegrator",
-    packages=find_packages(),
+    packages=find_packages(include=['WedgieIntegrator', 'WedgieIntegrator.*']),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
