@@ -195,15 +195,6 @@ class APIClient:
                 # Exponential backoff with a max wait time
                 retry_wait = min(2 ** retries, self.max_retry_wait)
                 await asyncio.sleep(retry_wait)
-            except httpx.HTTPStatusError as e:
-                __logger.debug("[ERROR] HTTP error occurred", status_code=e.response.status_code, content=e.response.text)
-                raise
-            except RetryError as e:
-                __logger.debug("[ERROR] Retry failed", error=str(e))
-                raise
-            except ValidationError as e:
-                __logger.debug("[ERROR] Response validation failed", error=str(e), method=method, url=endpoint)
-                raise
 
     async def get(self, endpoint: str, **kwargs):
         """Send a GET request"""
