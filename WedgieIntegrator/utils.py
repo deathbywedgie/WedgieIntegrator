@@ -38,37 +38,37 @@ def paginate_requests(func):
         )
 
         all_responses = [response_obj]
-        response_class = kwargs.pop("response_class", None)
-
-        request_kwargs = QueryParams(kwargs)
-        previous_calls = [request_kwargs]
+        # Track previous calls to detect duplicates, but must do it with copies
+        previous_calls = [QueryParams(kwargs)]
         while True:
             if result_limit and len(all_results) >= result_limit:
                 break
             pagination_payload = await response_obj.get_pagination_payload()
             if not pagination_payload:
                 break
-            request_kwargs = QueryParams(request_kwargs).merge(pagination_payload)
-            if request_kwargs in previous_calls:
+            kwargs.update(pagination_payload)
+            # Must store copies, because kwargs is mutable and gets changed with each paginated call
+            call_copy = QueryParams(kwargs)
+            if call_copy in previous_calls:
                 log.fatal(
                     "Pagination failure: next call is the same as a previous call",
-                    url=request_kwargs.get("endpoint"),
+                    url=kwargs.get("endpoint"),
                     call_count=len(all_responses),
                     new_results=len(response_obj.result_list or []),
                     current_total=len(all_results),
                     result_limit=result_limit or None,
                 )
                 raise ClientError(f"Pagination failure: next call is the same as a previous call")
-            previous_calls.append(request_kwargs)
+            previous_calls.append(call_copy)
 
             log.debug(
                 "Continuing pagination",
-                url=request_kwargs.get("endpoint"),
+                url=kwargs.get("endpoint"),
                 result_limit=result_limit or None,
                 current_result_count=len(all_results),
                 current_call_count=len(all_responses),
             )
-            response_obj = await func(self, *args, response_class=response_class, **request_kwargs)
+            response_obj = await func(self, *args, **kwargs)
             all_responses.append(response_obj)
             if response_obj.result_list:
                 all_results.extend(response_obj.result_list)
@@ -77,7 +77,7 @@ def paginate_requests(func):
             all_results = all_results[:result_limit]
         log.debug(
             "Pagination complete",
-            url=request_kwargs.get("endpoint"),
+            url=kwargs.get("endpoint"),
             call_count=len(all_responses),
             result_count=len(all_results),
             result_limit=result_limit or None,
