@@ -12,21 +12,25 @@ class BaseAPIResponse:
     response: httpx.Response
     response_model: Optional[Type[BaseModel]] = None
     content_type: str
-    is_rate_limit_error: bool = False
     is_rate_limit_failure: bool = False
     is_pagination: bool = False
     link_header: str = None
     pagination_links: dict = None
     __content = None
     _client = None
+    result_limit: int = None
 
-    def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None):
+    def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None, result_limit: int = None):
         self._client = api_client
         self.response = response
         self.response_model = response_model
         self.content_type = response.headers.get('Content-Type', '')
+        self.result_limit = result_limit
+
+    @property
+    def is_rate_limit_error(self):
         if self.response.status_code == 429:
-            self.is_rate_limit_error = True
+            return True
 
     @property
     def content(self) -> Union[dict, list, Any]:
