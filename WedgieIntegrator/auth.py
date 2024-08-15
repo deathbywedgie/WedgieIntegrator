@@ -1,7 +1,6 @@
 import base64
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-
+from typing import Union
 from httpx import Request
 
 
@@ -21,22 +20,26 @@ class NoAuth(AuthStrategy):
         pass
 
 
-@dataclass
 class HeaderAuth(AuthStrategy):
     """Generic token authentication strategy"""
     header_name: str = "Authorization"
     header_prefix: str = None
+    secret: Union[str, None] = None
 
-    def __init__(self, secret: str):
+    def __init__(self, secret: Union[str, None], header_name=None, header_prefix=None):
         self.__secret = secret
+        if header_name is not None:
+            self.header_name = header_name
+        if header_prefix is not None:
+            self.header_prefix = header_prefix
 
     def authenticate(self, request: Request):
         if not self.__secret:
             return
         if self.header_prefix:
-            request.headers['Authorization'] = f"{self.header_prefix} {self.__secret}"
+            request.headers[self.header_name] = f"{self.header_prefix} {self.__secret}"
         else:
-            request.headers['Authorization'] = self.__secret
+            request.headers[self.header_name] = self.__secret
 
 
 class BasicAuth(HeaderAuth):
