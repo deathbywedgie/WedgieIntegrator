@@ -1,7 +1,7 @@
 from typing import Optional, Any, Type, Union
-
 import httpx
 from pydantic import BaseModel
+
 try:
     from asyncio import to_thread
 except ImportError:
@@ -16,7 +16,7 @@ class BaseAPIResponse:
     is_pagination: bool = False
     link_header: str = None
     pagination_links: dict = None
-    __content = None
+    _content = None
     _client = None
     result_limit: int = None
 
@@ -35,7 +35,7 @@ class BaseAPIResponse:
     @property
     def content(self) -> Union[dict, list, Any]:
         # Remember that this is not accessible until after initialization, because _async_parse_content has to run first
-        return self.__content
+        return self._content
 
     @property
     def result_list(self):
@@ -63,13 +63,13 @@ class BaseAPIResponse:
     async def _async_parse_content(self):
         if self.response_model:
             parsed_response = await to_thread(self.response.json)
-            self.__content = self.response_model.parse_obj(parsed_response)
+            self._content = self.response_model.parse_obj(parsed_response)
         elif await self.is_json():
-            self.__content = await to_thread(self.response.json)
+            self._content = await to_thread(self.response.json)
         elif 'text/' in self.content_type:
-            self.__content = self.response.text
+            self._content = self.response.text
         else:
-            self.__content = self.response.content
+            self._content = self.response.content
 
 
 class APIResponse(BaseAPIResponse):
