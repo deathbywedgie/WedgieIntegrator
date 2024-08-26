@@ -96,6 +96,18 @@ class BaseAPIResponse:
         else:
             self._content = self.response.content
 
+    @property
+    def paginated_responses(self) -> list:
+        # By making this a property, we ensure that it can't be overwritten, i.e. it always remains the same object
+        # But it also makes it easier to override in subclasses
+        return self.__paginated_responses
+
+    @property
+    def paginated_results(self) -> list:
+        if not isinstance(self.paginated_responses, list):
+            return []
+        return [result for response in self.paginated_responses for result in response.result_list][:self.result_limit]
+
 
 class APIResponse(BaseAPIResponse):
 
