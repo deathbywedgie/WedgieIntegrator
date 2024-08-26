@@ -12,20 +12,31 @@ class BaseAPIResponse:
     response: httpx.Response
     response_model: Optional[Type[BaseModel]] = None
     content_type: str
-    is_rate_limit_failure: bool = False
-    is_pagination: bool = False
-    link_header: str = None
-    pagination_links: dict = None
-    _content = None
-    _client = None
     result_limit: int = None
+    link_header: str = None
+    _is_pagination: bool = None
+    _content: Any = None
+    _client = None
 
     def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None, result_limit: int = None):
         self._client = api_client
         self.response = response
         self.response_model = response_model
         self.content_type = response.headers.get('Content-Type', '')
-        self.result_limit = result_limit
+        if isinstance(result_limit, int) and result_limit > 0:
+            self.result_limit = result_limit
+        self.__pagination_links = {}
+        self.__paginated_responses = []
+
+    @property
+    def is_pagination(self) -> bool:
+        if self._is_pagination is not None:
+            return self._is_pagination
+        return False
+
+    @is_pagination.setter
+    def is_pagination(self, value):
+        self._is_pagination = value
 
     @property
     def is_rate_limit_error(self):
@@ -33,15 +44,24 @@ class BaseAPIResponse:
             return True
 
     @property
+    def is_rate_limit_failure(self):
+        return False
+
+    @property
     def content(self) -> Union[dict, list, Any]:
         # Remember that this is not accessible until after initialization, because _async_parse_content has to run first
         return self._content
+
+    @content.setter
+    def content(self, value):
+        self._content = value
 
     @property
     def result_list(self):
         """Customizable property for returning results as a list, when applicable"""
         if isinstance(self.content, list):
             return self.content
+        return []
 
     async def is_json(self):
         """Standalone parser to make customization easy"""
@@ -50,9 +70,14 @@ class BaseAPIResponse:
         return False
 
     @property
+    def pagination_links(self) -> dict:
+        # By making this a property, we ensure that it can't be overwritten, i.e. it always remains the same object
+        # But it also makes it easier to override in subclasses
+        return self.__pagination_links
+
+    @property
     def pagination_next_link(self):
-        if self.pagination_links:
-            return self.pagination_links.get('next')
+        return self.pagination_links.get('next')
 
     async def get_pagination_payload(self):
         request_args = {}
@@ -78,7 +103,6 @@ class APIResponse(BaseAPIResponse):
         super().__init__(*args, **kwargs)
         self.link_header = self.response.headers.get('Link')
         if self.link_header:
-            self.pagination_links = {}
             for link in self.link_header.split(','):
                 parts = link.split(';')
                 url = parts[0].strip('<> ')
