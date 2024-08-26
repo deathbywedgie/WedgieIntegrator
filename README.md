@@ -21,11 +21,8 @@ pip install WedgieIntegrator
 ### 0.1.3, 2024-08-09
 A few fixes, and better support for pagination with a custom response object and/or POST requests
 
-# ToDo
-- Add pagination option where the response can provide all remaining links at once
-- Add automatic wait & retry for rate limit errors (currently handled by integrations themselves)
-- More tests
-- Documentation
-- sample scripts, or perhaps a library of specific API configurations
-
-- kinda done: Add rate limiting (safe for Python 3.7)
+### 0.1.4, 2024-08-26
+Breaking change: will no longer return a different number of object (tuple vs single object) when pagination is detected.
+From now on, a single object will always be returned. When pagination is used, two new properties become useful:
+- "paginated_responses" is a combined list of all responses, from first to last
+- "paginated_results" is a combined list of all results from all paginated responses

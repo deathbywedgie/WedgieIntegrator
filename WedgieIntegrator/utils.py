@@ -25,23 +25,25 @@ def with_retries(func):
 def paginate_requests(func):
     """Decorator to handle pagination in API responses"""
     async def wrapper(self, *args, **kwargs):
-        response_obj: APIResponse = await func(self, *args, **kwargs)
-        if not response_obj.is_pagination:
-            return response_obj
+        first_response: APIResponse = await func(self, *args, **kwargs)
+        if not first_response.is_pagination:
+            return first_response
         result_limit = int(kwargs.get("result_limit") or 0)
-        all_results = [r for r in response_obj.result_list or []]
-        log.debug(
+        first_response.paginated_responses.append(first_response)
+        log_params = dict(original_url=kwargs.get("endpoint"))
+        if result_limit:
+            log_params["result_limit"] = result_limit
+        request_log = log.new(**log_params)
+        request_log.debug(
             "Paginated call recognized",
-            url=str(response_obj.response.url),
-            result_limit=result_limit or None,
-            new_results=len(all_results),
+            new_results=len(first_response.paginated_results),
         )
 
-        all_responses = [response_obj]
         # Track previous calls to detect duplicates, but must do it with copies
         previous_calls = [QueryParams(kwargs)]
+        response_obj = first_response
         while True:
-            if result_limit and len(all_results) >= result_limit:
+            if result_limit and len(first_response.paginated_results) >= result_limit:
                 break
             pagination_payload = await response_obj.get_pagination_payload()
             if not pagination_payload:
@@ -50,37 +52,30 @@ def paginate_requests(func):
             # Must store copies, because kwargs is mutable and gets changed with each paginated call
             call_copy = QueryParams(kwargs)
             if call_copy in previous_calls:
-                log.fatal(
+                request_log.fatal(
                     "Pagination failure: next call is the same as a previous call",
                     url=kwargs.get("endpoint"),
-                    call_count=len(all_responses),
+                    call_count=len(first_response.paginated_responses),
                     new_results=len(response_obj.result_list or []),
-                    current_total=len(all_results),
-                    result_limit=result_limit or None,
+                    result_count=len(first_response.paginated_results),
                 )
                 raise ClientError(f"Pagination failure: next call is the same as a previous call")
             previous_calls.append(call_copy)
 
-            log.debug(
+            request_log.debug(
                 "Continuing pagination",
                 url=kwargs.get("endpoint"),
-                result_limit=result_limit or None,
-                current_result_count=len(all_results),
-                current_call_count=len(all_responses),
+                call_count=len(first_response.paginated_responses),
+                new_results=len(response_obj.result_list or []),
+                result_count=len(first_response.paginated_results),
             )
             response_obj = await func(self, *args, **kwargs)
-            all_responses.append(response_obj)
-            if response_obj.result_list:
-                all_results.extend(response_obj.result_list)
+            first_response.paginated_responses.append(response_obj)
 
-        if result_limit:
-            all_results = all_results[:result_limit]
-        log.debug(
+        request_log.debug(
             "Pagination complete",
-            url=kwargs.get("endpoint"),
-            call_count=len(all_responses),
-            result_count=len(all_results),
-            result_limit=result_limit or None,
+            call_count=len(first_response.paginated_responses),
+            result_count=len(first_response.paginated_results),
         )
-        return all_responses, all_results
+        return first_response
     return wrapper
