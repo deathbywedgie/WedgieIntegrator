@@ -26,3 +26,6 @@ Breaking change: will no longer return a different number of object (tuple vs si
 From now on, a single object will always be returned. When pagination is used, two new properties become useful:
 - "paginated_responses" is a combined list of all responses, from first to last
 - "paginated_results" is a combined list of all results from all paginated responses
+
+### 0.1.4.1, 2024-08-28
+Fix: new pagination fields must be exposed in order to work correctly in a subclass
