@@ -25,8 +25,8 @@ class BaseAPIResponse:
         self.content_type = response.headers.get('Content-Type', '')
         if isinstance(result_limit, int) and result_limit > 0:
             self.result_limit = result_limit
-        self.__pagination_links = {}
-        self.__paginated_responses = []
+        self._pagination_links = {}
+        self._paginated_responses = []
 
     @property
     def is_pagination(self) -> bool:
@@ -73,7 +73,7 @@ class BaseAPIResponse:
     def pagination_links(self) -> dict:
         # By making this a property, we ensure that it can't be overwritten, i.e. it always remains the same object
         # But it also makes it easier to override in subclasses
-        return self.__pagination_links
+        return self._pagination_links
 
     @property
     def pagination_next_link(self):
@@ -100,7 +100,7 @@ class BaseAPIResponse:
     def paginated_responses(self) -> list:
         # By making this a property, we ensure that it can't be overwritten, i.e. it always remains the same object
         # But it also makes it easier to override in subclasses
-        return self.__paginated_responses
+        return self._paginated_responses
 
     @property
     def paginated_results(self) -> list:
