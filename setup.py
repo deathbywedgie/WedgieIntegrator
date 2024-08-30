@@ -21,6 +21,5 @@ setup(
         "pydantic",
         "tenacity",
         "structlog",
-        "aiolimiter",
     ],
 )
