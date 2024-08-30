@@ -1,8 +1,7 @@
 from typing import Optional, Any, Type, Union, Dict, List
 import httpx
 from pydantic import BaseModel, ValidationError
-from tenacity import RetryError
-from aiolimiter import AsyncLimiter
+# from aiolimiter import AsyncLimiter
 import asyncio
 from collections import deque
 import time
@@ -34,8 +33,8 @@ class APIClient:
     auth_strategy: Optional[AuthStrategy] = None
     response_class: Optional[Type[BaseAPIResponse]] = None
     response_model: Optional[Type[BaseModel]] = None
-    limiter_per_second: Optional[AsyncLimiter] = None
-    limiter_per_minute: Optional[AsyncLimiter] = None
+    # limiter_per_second: Optional[AsyncLimiter] = None
+    # limiter_per_minute: Optional[AsyncLimiter] = None
     _request_timestamps: deque = deque()
     __max_requests_per_second: int = 0
     __total_requests: int = 0
@@ -65,6 +64,8 @@ class APIClient:
         self.base_url = base_url
         self.timeout = timeout
         self.verify_ssl = verify_ssl
+        if requests_per_minute or requests_per_second:
+            raise NotImplementedError(f"Disabled; does not work perfectly, and currently can cause package conflicts")
         self.requests_per_minute = requests_per_minute
         self.requests_per_second = requests_per_second
         self.verbose = verbose
@@ -83,11 +84,11 @@ class APIClient:
             client_params.update(httpx_kwargs)
         self.client = httpx.AsyncClient(**client_params)
 
-        # Initialize rate limiters
-        if self.requests_per_second:
-            self.limiter_per_second = AsyncLimiter(self.requests_per_second, time_period=1)
-        if self.requests_per_minute:
-            self.limiter_per_minute = AsyncLimiter(self.requests_per_minute, time_period=60)
+        # # Initialize rate limiters
+        # if self.requests_per_second:
+        #     self.limiter_per_second = AsyncLimiter(self.requests_per_second, time_period=1)
+        # if self.requests_per_minute:
+        #     self.limiter_per_minute = AsyncLimiter(self.requests_per_minute, time_period=60)
 
     async def __aenter__(self) -> 'APIClient':
         # No need to initialize the client here as it is already initialized in __init__
@@ -155,19 +156,20 @@ class APIClient:
         retries = 0
         while retries <= self.max_retries:
             try:
-                # Apply both rate limiters
-                if self.limiter_per_second and self.limiter_per_minute:
-                    async with self.limiter_per_second, self.limiter_per_minute:
-                        response = await self._perform_request(method, endpoint, **kwargs)
-                elif self.limiter_per_second:
-                    async with self.limiter_per_second:
-                        response = await self._perform_request(method, endpoint, **kwargs)
-                elif self.limiter_per_minute:
-                    async with self.limiter_per_minute:
-                        response = await self._perform_request(method, endpoint, **kwargs)
-                else:
-                    response = await self._perform_request(method, endpoint, **kwargs)
+                # # Apply both rate limiters
+                # if self.limiter_per_second and self.limiter_per_minute:
+                #     async with self.limiter_per_second, self.limiter_per_minute:
+                #         response = await self._perform_request(method, endpoint, **kwargs)
+                # elif self.limiter_per_second:
+                #     async with self.limiter_per_second:
+                #         response = await self._perform_request(method, endpoint, **kwargs)
+                # elif self.limiter_per_minute:
+                #     async with self.limiter_per_minute:
+                #         response = await self._perform_request(method, endpoint, **kwargs)
+                # else:
+                #     response = await self._perform_request(method, endpoint, **kwargs)
 
+                response = await self._perform_request(method, endpoint, **kwargs)
                 # Log the request time
                 current_time = time.time()
                 self._request_timestamps.append(current_time)
