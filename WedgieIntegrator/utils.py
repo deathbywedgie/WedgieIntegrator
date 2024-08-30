@@ -48,6 +48,15 @@ def paginate_requests(func):
             pagination_payload = await response_obj.get_pagination_payload()
             if not pagination_payload:
                 break
+            if len(response_obj.result_list or []) == 0:
+                request_log.debug(
+                    "No results returned from previous call, stopping pagination",
+                    url=kwargs.get("endpoint"),
+                    call_count=len(first_response.paginated_responses),
+                    new_results=len(response_obj.result_list or []),
+                    result_count=len(first_response.paginated_results),
+                )
+                break
             kwargs.update(pagination_payload)
             # Must store copies, because kwargs is mutable and gets changed with each paginated call
             call_copy = QueryParams(kwargs)
