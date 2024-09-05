@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="WedgieIntegrator",
-    version="0.1.4.3",
+    version="0.1.4.4",
     author="Chad Roberts",
     author_email="jcbroberts@gmail.com",
     description="An API client toolkit that is async friendly",

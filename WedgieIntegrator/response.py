@@ -1,12 +1,19 @@
 from typing import Optional, Any, Type, Union
 import httpx
 from pydantic import BaseModel
+from json import JSONDecodeError
 
 try:
     from asyncio import to_thread
 except ImportError:
     from .asyncio_workaround import to_thread
 
+import logging
+import structlog
+
+# Configure logging
+_logger = logging.getLogger(__name__)
+log = structlog.wrap_logger(_logger)
 
 class BaseAPIResponse:
     response: httpx.Response
@@ -86,11 +93,18 @@ class BaseAPIResponse:
         return request_args
 
     async def _async_parse_content(self):
+        async def parse_json(r):
+            try:
+                return await to_thread(r.json)
+            except JSONDecodeError:
+                log.warn(f"JSON parsing failed for response")
+                return r.content
+
         if self.response_model:
-            parsed_response = await to_thread(self.response.json)
+            parsed_response = await parse_json(self.response)
             self._content = self.response_model.parse_obj(parsed_response)
         elif await self.is_json():
-            self._content = await to_thread(self.response.json)
+            self._content = await parse_json(self.response)
         elif 'text/' in self.content_type:
             self._content = self.response.text
         else:

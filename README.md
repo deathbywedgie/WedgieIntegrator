@@ -37,3 +37,6 @@ Fix: new pagination fields must be exposed in order to work correctly in a subcl
 
 ### 0.1.4.3, 2024-09-04
 Fix: reinitialize the web client in the event of "Event loop is closed" runtime errors
+
+### 0.1.4.4, 2024-09-05
+Fix: handle when a response indicates it is json but then does not parse as valid json
