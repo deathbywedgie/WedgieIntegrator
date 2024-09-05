@@ -40,3 +40,6 @@ Fix: reinitialize the web client in the event of "Event loop is closed" runtime 
 
 ### 0.1.4.4, 2024-09-05
 Fix: handle when a response indicates it is json but then does not parse as valid json
+
+### 0.1.4.5, 2024-09-05
+Same thing, just fixing what annoys me.

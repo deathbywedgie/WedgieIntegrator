@@ -93,18 +93,18 @@ class BaseAPIResponse:
         return request_args
 
     async def _async_parse_content(self):
-        async def parse_json(r):
+        async def parse_json():
             try:
-                return await to_thread(r.json)
+                return await to_thread(self.response.json)
             except JSONDecodeError:
                 log.warn(f"JSON parsing failed for response")
-                return r.content
+                return self.response.content
 
         if self.response_model:
-            parsed_response = await parse_json(self.response)
+            parsed_response = await parse_json()
             self._content = self.response_model.parse_obj(parsed_response)
         elif await self.is_json():
-            self._content = await parse_json(self.response)
+            self._content = await parse_json()
         elif 'text/' in self.content_type:
             self._content = self.response.text
         else:
