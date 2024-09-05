@@ -34,3 +34,6 @@ Fix: new pagination fields must be exposed in order to work correctly in a subcl
 - Fix: stop pagination if a response returns no results, no matter what the response object says
 - Removed aiolimiter from the package and replaced with a NotImplementedError. Per second and per minute limits are not
  precise enough, so I do not yet use them, and I discovered that aiolimiter causes some conflicts, so I'll come back when I can move on from 3.7.
+
+### 0.1.4.3, 2024-09-04
+Fix: reinitialize the web client in the event of "Event loop is closed" runtime errors
