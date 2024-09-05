@@ -29,6 +29,8 @@ class APIClient:
     requests_per_second: int = None
     requests_per_minute: int = None
     verbose: bool = False
+    client: httpx.AsyncClient = None
+    client_params: dict = None
 
     auth_strategy: Optional[AuthStrategy] = None
     response_class: Optional[Type[BaseAPIResponse]] = None
@@ -75,14 +77,14 @@ class APIClient:
         self.max_retries = max_retries
         self.max_retry_wait = max_retry_wait
         # Initialize client here
-        client_params = dict(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
+        self.client_params = dict(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
         if default_params:
-            client_params["params"] = default_params
+            self.client_params["params"] = default_params
         if default_headers:
-            client_params["headers"] = default_headers
+            self.client_params["headers"] = default_headers
         if httpx_kwargs:
-            client_params.update(httpx_kwargs)
-        self.client = httpx.AsyncClient(**client_params)
+            self.client_params.update(httpx_kwargs)
+        self.client = httpx.AsyncClient(**self.client_params)
 
         # # Initialize rate limiters
         # if self.requests_per_second:
@@ -97,6 +99,14 @@ class APIClient:
     async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[Any]):
         if self.client:
             await self.client.aclose()
+
+    async def reinit_web_client(self):
+        if self.client is not None:
+            try:
+                await self.client.aclose()
+            except RuntimeError:
+                pass
+        self.client = httpx.AsyncClient(**self.client_params)
 
     @property
     def max_requests_per_second(self) -> int:
@@ -129,7 +139,14 @@ class APIClient:
         """Helper function to send the HTTP request."""
         request = self.client.build_request(method=method, url=endpoint, **kwargs)
         self.auth_strategy.authenticate(request)
-        return await self.client.send(request)
+        try:
+            return await self.client.send(request)
+        except RuntimeError as e:
+            if 'Event loop is closed' in str(e):
+                log.warn("Event loop is closed; reinitializing the web client")
+                await self.reinit_web_client()
+                return await self.client.send(request)
+            raise
 
     async def _handle_response(self, response: httpx.Response, request: httpx.Request, response_class: Optional[Type[BaseAPIResponse]], result_limit: int) -> BaseAPIResponse:
         """Process the response and handle errors."""
