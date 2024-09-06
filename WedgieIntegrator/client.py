@@ -159,7 +159,28 @@ class APIClient:
 
     @paginate_requests
     async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, ignore_pagination=False, response_class: Optional[Type[BaseAPIResponse]] = None, **kwargs) -> Union[BaseAPIResponse, Any]:
-        """Send an HTTP request with retries and authentication"""
+        """
+        Send an HTTP request with optional retries, pagination, and authentication.
+
+        Args:
+            method (str): HTTP method to use for the request (e.g., 'GET', 'POST')
+            endpoint (str): The API endpoint (or other URL) to which you want to send the request.
+            raise_for_status (bool, optional): Whether to raise an exception for HTTP error responses. Defaults to True.
+            result_limit (int, optional): Limit the number of results for paginated responses. Defaults to None.
+            ignore_pagination (bool, optional): Whether to ignore pagination and return only the first page of results. Defaults to False.
+            response_class (Optional[Type[BaseAPIResponse]], optional): Custom response class to use for handling the response. Defaults to None.
+            **kwargs: Additional arguments to pass to the httpx request.
+
+        Returns:
+            Union[BaseAPIResponse, Any]: The response object, which is BaseAPIResponse or a custom response class instance
+
+        Raises:
+            TaskAborted: If the client is in a failed state and cannot send requests.
+            RuntimeError: If the HTTP client is not initialized.
+            httpx.HTTPStatusError: If the response status code is an error and raise_for_status is True.
+            httpx.TransportError: If a connection error occurs and the maximum number of retries is exceeded.
+        """
+
         # Arguments used only by the pagination decorator
         _ = result_limit
         _ = ignore_pagination
