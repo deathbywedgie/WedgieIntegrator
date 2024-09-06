@@ -43,3 +43,7 @@ Fix: handle when a response indicates it is json but then does not parse as vali
 
 ### 0.1.4.5, 2024-09-05
 Same thing, just fixing what annoys me.
+
+### 0.1.4.6, 2024-09-06
+- Added a parameter for disabling automatic pagination.
+- Added a more helpful doc string to the "send_request" method
