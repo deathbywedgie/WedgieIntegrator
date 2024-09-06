@@ -25,6 +25,7 @@ def with_retries(func):
 def paginate_requests(func):
     """Decorator to handle pagination in API responses"""
     async def wrapper(self, *args, **kwargs):
+        ignore_pagination = kwargs.get("ignore_pagination", False)
         first_response: APIResponse = await func(self, *args, **kwargs)
         if not first_response.is_pagination:
             return first_response
@@ -34,6 +35,9 @@ def paginate_requests(func):
         if result_limit:
             log_params["result_limit"] = result_limit
         request_log = log.new(**log_params)
+        if ignore_pagination:
+            request_log.debug("Pagination recognized, but ignored via \"ignore_pagination\"", url=kwargs.get("endpoint"))
+            return first_response
         request_log.debug(
             "Paginated call recognized",
             new_results=len(first_response.paginated_results),

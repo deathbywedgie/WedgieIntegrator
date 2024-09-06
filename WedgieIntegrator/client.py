@@ -158,9 +158,12 @@ class APIClient:
         return response_obj
 
     @paginate_requests
-    async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, response_class: Optional[Type[BaseAPIResponse]] = None, **kwargs) -> Union[httpx.Response, BaseAPIResponse, Dict, List, Any]:
+    async def send_request(self, method: str, endpoint: str, raise_for_status=True, result_limit: int = None, ignore_pagination=False, response_class: Optional[Type[BaseAPIResponse]] = None, **kwargs) -> Union[BaseAPIResponse, Any]:
         """Send an HTTP request with retries and authentication"""
-        _ = result_limit  # Used only by pagination
+        # Arguments used only by the pagination decorator
+        _ = result_limit
+        _ = ignore_pagination
+
         __logger = log.new(method=method, url=endpoint)
         if self.is_failed:
             __logger.fatal("Failure reported; aborting tasks")
