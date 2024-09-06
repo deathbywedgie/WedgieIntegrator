@@ -15,6 +15,7 @@ import structlog
 _logger = logging.getLogger(__name__)
 log = structlog.wrap_logger(_logger)
 
+
 class BaseAPIResponse:
     response: httpx.Response
     response_model: Optional[Type[BaseModel]] = None
