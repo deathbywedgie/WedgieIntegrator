@@ -1,12 +1,10 @@
 from typing import Optional, Any, Type, Union, Dict
 import httpx
-# ToDo Fix type hints so this can be removed from requirements
 from pydantic import BaseModel
 # from aiolimiter import AsyncLimiter
 import asyncio
 from collections import deque
 import time
-from dataclasses import dataclass, field
 
 from .auth import AuthStrategy, NoAuth
 from .exceptions import RateLimitError, RateLimitFailure, TaskAborted
@@ -21,52 +19,25 @@ _logger = logging.getLogger(__name__)
 log = structlog.wrap_logger(_logger)
 
 
-@dataclass
-class APIConfig:
-    base_url: str = None
-    timeout: float = 10.0
-    verify_ssl: bool = True
-    default_params: Optional[Dict] = None
-    default_headers: Optional[Dict] = None
-    httpx_kwargs: Optional[Dict] = None
-    client: httpx.AsyncClient = field(init=False)
-    verbose: bool = False
-
-    @property
-    def client_params(self):
-        client_params = {
-            "base_url": self.base_url,
-            "timeout": self.timeout,
-            "verify": self.verify_ssl,
-            "params": self.default_params,
-            "headers": self.default_headers,
-        }
-        client_params = {k: v for k, v in client_params.items() if v is not None}
-        client_params.update(self.httpx_kwargs)
-        return client_params
-
-    def __post_init__(self):
-        self.httpx_kwargs = self.httpx_kwargs or {}
-        self.client = httpx.AsyncClient(**self.client_params)
-
-    async def reinit_web_client(self):
-        if self.client is not None:
-            try:
-                await self.client.aclose()
-            except RuntimeError:
-                pass
-        self.client = httpx.AsyncClient(**self.client_params)
-
-
 class APIClient:
     """Base class for API client"""
-    # requests_per_second: int = None
-    # requests_per_minute: int = None
+    is_failed: bool = False
+
+    base_url: str
+    timeout: Optional[float] = 10.0  # Default timeout of 10 seconds
+    verify_ssl: bool = True
+    requests_per_second: int = None
+    requests_per_minute: int = None
+    verbose: bool = False
+    client: httpx.AsyncClient = None
+    client_params: dict = None
+
     auth_strategy: Optional[AuthStrategy] = None
     response_class: Optional[Type[BaseAPIResponse]] = None
     response_model: Optional[Type[BaseModel]] = None
     # limiter_per_second: Optional[AsyncLimiter] = None
     # limiter_per_minute: Optional[AsyncLimiter] = None
+    _request_timestamps: deque = deque()
     __max_requests_per_second: int = 0
     __total_requests: int = 0
     __total_retried_requests: int = 0
@@ -76,34 +47,44 @@ class APIClient:
     max_retry_wait: float = 5.0  # Maximum wait time between retries in seconds
 
     def __init__(self,
+                 base_url: str,
                  *,  # Force key-value pairs for input
                  auth_strategy: Optional[AuthStrategy] = None,
-                 config: Optional[Type[APIConfig]] = None,
                  response_class: Optional[Type[BaseAPIResponse]] = None,
                  response_model: Optional[Type[BaseModel]] = None,
-                 base_url: str = None,
                  timeout: float = 10.0,
                  default_params: dict = None,
                  default_headers: dict = None,
                  verify_ssl: bool = True,
+                 requests_per_minute: int = None,
+                 requests_per_second: int = None,
                  verbose: bool = False,
                  max_retries: int = 0,
                  max_retry_wait: float = 5.0,
                  httpx_kwargs: dict = None,
                  ):
-        self.is_failed: bool = False
-        self._request_timestamps: deque = deque()
-
-        # self.requests_per_minute = requests_per_minute
-        # self.requests_per_second = requests_per_second
+        self.base_url = base_url
+        self.timeout = timeout
+        self.verify_ssl = verify_ssl
+        if requests_per_minute or requests_per_second:
+            raise NotImplementedError(f"Disabled; does not work perfectly, and currently can cause package conflicts")
+        self.requests_per_minute = requests_per_minute
+        self.requests_per_second = requests_per_second
+        self.verbose = verbose
         self.auth_strategy = auth_strategy or NoAuth()
-        self.config = config or APIConfig(
-                base_url=base_url, timeout=timeout, verify_ssl=verify_ssl, default_params=default_params,
-                default_headers=default_headers, httpx_kwargs=httpx_kwargs, verbose=verbose)
         self.response_class = response_class or BaseAPIResponse
         self.response_model = response_model
         self.max_retries = max_retries
         self.max_retry_wait = max_retry_wait
+        # Initialize client here
+        self.client_params = dict(base_url=self.base_url, timeout=self.timeout, verify=self.verify_ssl)
+        if default_params:
+            self.client_params["params"] = default_params
+        if default_headers:
+            self.client_params["headers"] = default_headers
+        if httpx_kwargs:
+            self.client_params.update(httpx_kwargs)
+        self.client = httpx.AsyncClient(**self.client_params)
 
         # # Initialize rate limiters
         # if self.requests_per_second:
@@ -116,8 +97,16 @@ class APIClient:
         return self
 
     async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[Any]):
-        if self.config.client:
-            await self.config.client.aclose()
+        if self.client:
+            await self.client.aclose()
+
+    async def reinit_web_client(self):
+        if self.client is not None:
+            try:
+                await self.client.aclose()
+            except RuntimeError:
+                pass
+        self.client = httpx.AsyncClient(**self.client_params)
 
     @property
     def max_requests_per_second(self) -> int:
@@ -136,7 +125,7 @@ class APIClient:
     def log_verbose(self, msg, logger=None, **kwargs):
         if not logger:
             logger = log
-        if self.config.verbose:
+        if self.verbose:
             logger.debug(msg, **kwargs)
 
     async def create_response_object(self, response: httpx.Response, response_class: Optional[Type[BaseAPIResponse]], result_limit: int):
@@ -148,15 +137,15 @@ class APIClient:
 
     async def _perform_request(self, method: str, endpoint: str, **kwargs) -> httpx.Response:
         """Helper function to send the HTTP request."""
-        request = self.config.client.build_request(method=method, url=endpoint, **kwargs)
+        request = self.client.build_request(method=method, url=endpoint, **kwargs)
         self.auth_strategy.authenticate(request)
         try:
-            return await self.config.client.send(request)
+            return await self.client.send(request)
         except RuntimeError as e:
             if 'Event loop is closed' in str(e):
                 log.warn("Event loop is closed; reinitializing the web client")
-                await self.config.reinit_web_client()
-                return await self.config.client.send(request)
+                await self.reinit_web_client()
+                return await self.client.send(request)
             raise
 
     async def _handle_response(self, response: httpx.Response, request: httpx.Request, response_class: Optional[Type[BaseAPIResponse]], result_limit: int) -> BaseAPIResponse:
@@ -201,7 +190,7 @@ class APIClient:
             __logger.fatal("Failure reported; aborting tasks")
             raise TaskAborted("Failure reported; aborting tasks")
         __logger.debug("Sending request")
-        if self.config.client is None:
+        if self.client is None:
             raise RuntimeError("HTTP client is not initialized")
 
         self.__total_requests += 1

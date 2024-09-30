@@ -1,5 +1,5 @@
 from . import auth
-from .client import APIClient, APIConfig
+from .client import APIClient
 from . import exceptions
 from .response import APIResponse, BaseAPIResponse
 from . import utils
