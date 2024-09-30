@@ -132,7 +132,7 @@ class APIClient:
         response_class = response_class or self.response_class
         response_obj = response_class(api_client=self, response=response, response_model=self.response_model, result_limit=result_limit)
         if response_obj.content is None:
-            await response_obj._async_parse_content()
+            await response_obj.async_parse_content()
         return response_obj
 
     async def _perform_request(self, method: str, endpoint: str, **kwargs) -> httpx.Response:

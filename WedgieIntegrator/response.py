@@ -57,7 +57,7 @@ class BaseAPIResponse:
 
     @property
     def content(self) -> Union[dict, list, Any]:
-        # Remember that this is not accessible until after initialization, because _async_parse_content has to run first
+        # Remember that this is not accessible until after initialization, because async_parse_content has to run first
         return self._content
 
     @content.setter
@@ -93,7 +93,7 @@ class BaseAPIResponse:
             request_args['endpoint'] = self.pagination_next_link
         return request_args
 
-    async def _async_parse_content(self):
+    async def async_parse_content(self):
         async def parse_json():
             try:
                 return await to_thread(self.response.json)
