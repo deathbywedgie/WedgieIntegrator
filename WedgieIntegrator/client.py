@@ -1,4 +1,4 @@
-from typing import Optional, Any, Type, Union, Dict, List
+from typing import Optional, Any, Type, Union, Dict
 import httpx
 from pydantic import BaseModel
 # from aiolimiter import AsyncLimiter
