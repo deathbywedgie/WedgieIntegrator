@@ -1,6 +1,5 @@
-from typing import Optional, Any, Type, Union
+from typing import Any, Union
 import httpx
-from pydantic import BaseModel
 from json import JSONDecodeError
 
 try:
@@ -17,8 +16,6 @@ log = structlog.wrap_logger(_logger)
 
 
 class BaseAPIResponse:
-    response: httpx.Response
-    response_model: Optional[Type[BaseModel]] = None
     content_type: str
     result_limit: int = None
     link_header: str = None
@@ -26,7 +23,19 @@ class BaseAPIResponse:
     _content: Any = None
     _client = None
 
-    def __init__(self, api_client, response: httpx.Response, response_model: Optional[Type[BaseModel]] = None, result_limit: int = None):
+    def __init__(self, api_client, response, response_model=None, result_limit=None):
+        """
+        Initialize the API response.
+
+        :param api_client: APIClient instance
+        :type api_client: APIClient
+        :param response: HTTP response object
+        :type response: httpx.Response
+        :param response_model: Response model, defaults to None
+        :type response_model: pydantic.BaseModel, optional
+        :param result_limit: Result limit, defaults to None
+        :type result_limit: int, optional
+        """
         self._client = api_client
         self.response = response
         self.response_model = response_model
