@@ -1,6 +1,6 @@
 from typing import Optional, Any, Type, Union, Dict, List
 import httpx
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 # from aiolimiter import AsyncLimiter
 import asyncio
 from collections import deque
